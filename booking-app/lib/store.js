@@ -59,6 +59,22 @@ export async function listReservations(account) {
   return account ? rows.filter((r) => r.account === account) : rows;
 }
 
+/** Marks a reservation cancelled. Returns the updated row, or null if there is no such id. */
+export async function cancelReservation(id) {
+  const rows = await readAll(K.reservations, "reservations");
+  const i = rows.findIndex((r) => r.id === id);
+  if (i < 0) return null;
+  const updated = { ...rows[i], cancelled_at: new Date().toISOString() };
+  rows[i] = updated;
+  if (redis) {
+    await redis.del(K.reservations);
+    if (rows.length) await redis.rpush(K.reservations, ...rows.map((r) => JSON.stringify(r)));
+  } else {
+    mem.reservations = rows;
+  }
+  return updated;
+}
+
 export async function addRequest(row) { await push(K.requests, "requests", row, MAX_LOG); }
 export async function listRequests({ account, path, limit = 200 } = {}) {
   let rows = await readAll(K.requests, "requests");
