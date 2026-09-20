@@ -49,17 +49,23 @@ export default function ReservationList({ account }) {
       <ul className="cards">
         {ordered.map((r) => {
           const place = byId(r.restaurant);
+          const tint = place ? place.tint : ["#44403c", "#78716c"];
           return (
             <li key={r.id} className="card reservation">
-              <div className="card-head">
-                <h2>{place ? place.name : "Table"}</h2>
-                <code>{r.id}</code>
+              <div className="card-art short" style={{ "--tint-a": tint[0], "--tint-b": tint[1] }} aria-hidden="true">
+                {place ? place.initials : "—"}
               </div>
-              <p className="meta">{new Date(r.date).toLocaleDateString()} at {r.slot}</p>
-              <p className="blurb">Party of {r.party_size ?? 2}</p>
-              <button className="secondary" disabled={busy === r.id} onClick={() => cancel(r.id)}>
-                {busy === r.id ? "Cancelling…" : "Cancel"}
-              </button>
+              <div className="card-body">
+                <div className="card-head">
+                  <h2>{place ? place.name : "Table"}</h2>
+                  <code>{r.id}</code>
+                </div>
+                <p className="meta">{new Date(r.date).toLocaleDateString()} at {r.slot}</p>
+                <p className="blurb">Party of {r.party_size ?? 2}</p>
+                <button className="secondary" disabled={busy === r.id} onClick={() => cancel(r.id)}>
+                  {busy === r.id ? "Cancelling…" : "Cancel"}
+                </button>
+              </div>
             </li>
           );
         })}

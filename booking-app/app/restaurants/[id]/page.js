@@ -3,6 +3,8 @@ import { SLOTS, byId } from "@/lib/restaurants";
 
 export const dynamic = "force-dynamic";
 
+const money = (n) => "££££".slice(0, n);
+
 export default async function RestaurantPage({ params, searchParams }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -11,18 +13,22 @@ export default async function RestaurantPage({ params, searchParams }) {
 
   if (!r) {
     return (<><Nav account={account} /><main><h1>Not found</h1>
-      <p className="muted">No restaurant with that id.</p><a className="cta" href="/">Back</a></main></>);
+      <p className="muted">No restaurant with that id.</p><a className="cta" href="/">← Back to restaurants</a></main></>);
   }
 
   return (
     <>
       <Nav account={account} />
       <main>
-        <header className="hero">
-          <h1>{r.name}</h1>
-          <p className="muted">{r.cuisine} · {r.area} · rated {r.rating.toFixed(1)}</p>
-          <p>{r.blurb}</p>
-        </header>
+        <div className="banner" style={{ "--tint-a": r.tint[0], "--tint-b": r.tint[1] }}>
+          <span className="banner-mark" aria-hidden="true">{r.initials}</span>
+          <div>
+            <h1>{r.name}</h1>
+            <p className="banner-meta">{r.cuisine} · {r.area} · {money(r.price)} · rated {r.rating.toFixed(1)}</p>
+          </div>
+        </div>
+
+        <p className="lede">{r.blurb}</p>
 
         <section className="card">
           <h2>Tonight&rsquo;s sittings</h2>

@@ -27,13 +27,18 @@ export default function SearchableList({ account }) {
         <ul className="cards">
           {shown.map((r) => (
             <li key={r.id} className="card restaurant">
-              <div className="card-head">
-                <h2>{r.name}</h2>
-                <span className="rating">{r.rating.toFixed(1)}</span>
+              <div className="card-art" style={{ "--tint-a": r.tint[0], "--tint-b": r.tint[1] }} aria-hidden="true">
+                {r.initials}
               </div>
-              <p className="meta">{r.cuisine} · {r.area} · {money(r.price)}</p>
-              <p className="blurb">{r.blurb}</p>
-              <a className="cta" href={`/restaurants/${r.id}${link}`}>See times</a>
+              <div className="card-body">
+                <div className="card-head">
+                  <h2>{r.name}</h2>
+                  <span className="rating">{r.rating.toFixed(1)}</span>
+                </div>
+                <p className="meta">{r.cuisine} · {r.area} · {money(r.price)}</p>
+                <p className="blurb">{r.blurb}</p>
+                <a className="cta" href={`/restaurants/${r.id}${link}`}>See times →</a>
+              </div>
             </li>
           ))}
         </ul>
