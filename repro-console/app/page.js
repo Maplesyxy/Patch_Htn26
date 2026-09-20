@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CustomerIntake from "@/components/CustomerIntake";
 import PatchIcon from "@/components/PatchIcon";
+import EnsembleDiagram from "@/components/EnsembleDiagram";
+import AgentEnsemble from "@/components/AgentEnsemble";
 import PatchShell from "@/components/PatchShell";
 import { STAGES } from "@/lib/agents";
 
@@ -41,91 +43,6 @@ function ViewHeading({ eyebrow, title, children, action }) {
       </div>
       {action || null}
     </div>
-  );
-}
-
-function StepIcon({ name }) {
-  return (
-    <span className={"patch-step-icon patch-step-icon-" + name} aria-hidden="true">
-      <PatchIcon name={name} size={19} />
-    </span>
-  );
-}
-
-function Workflow() {
-  return (
-    <section className="patch-workflow" aria-label="How Patch works">
-      <div className="patch-workflow-step patch-intake-step">
-        <div className="patch-step-top">
-          <StepIcon name="inbox" />
-          <span className="patch-step-number">01</span>
-        </div>
-        <div>
-          <h2>Customer intake</h2>
-          <p>Reports become clear, testable signals.</p>
-        </div>
-        <div className="patch-step-foot">
-          <span className="patch-model-mark" aria-hidden="true">G</span>
-          <span>Gemini Flash</span>
-        </div>
-      </div>
-
-      <span className="patch-flow-link" aria-hidden="true"><span /></span>
-
-      <div className="patch-workflow-step patch-swarm-step">
-        <div className="patch-step-top">
-          <StepIcon name="swarm" />
-          <span className="patch-step-number">02</span>
-        </div>
-        <div className="patch-swarm-heading">
-          <div>
-            <h2>Reproduction swarm</h2>
-            <p>Independent work, shared evidence.</p>
-          </div>
-          <span className="patch-live-dot"><i /> Evidence-led</span>
-        </div>
-        <div className="patch-swarm-cards">
-          <div className="patch-mini-agent">
-            <span className="patch-mini-symbol"><PatchIcon name="play" size={14} /></span>
-            <span><strong>Execution</strong><small>QA engineer</small></span>
-          </div>
-          <div className="patch-mini-agent">
-            <span className="patch-mini-symbol"><PatchIcon name="compass" size={14} /></span>
-            <span><strong>Supervisor</strong><small>Incident lead</small></span>
-          </div>
-          <div className="patch-mini-agent">
-            <span className="patch-mini-symbol"><PatchIcon name="layers" size={14} /></span>
-            <span><strong>Incidents</strong><small>SRE analyst</small></span>
-          </div>
-        </div>
-        <span className="patch-handoff"><span className="patch-handoff-line" />Incident brief</span>
-      </div>
-
-      <span className="patch-flow-link" aria-hidden="true"><span /></span>
-
-      <div className="patch-workflow-step patch-implementation-step">
-        <div className="patch-step-top">
-          <StepIcon name="code" />
-          <span className="patch-step-number">03</span>
-        </div>
-        <div>
-          <h2>Implementation</h2>
-          <p>A proposed fix is checked against the reproduced failure.</p>
-        </div>
-        <div className="patch-step-foot">
-          <span className="patch-plan-dot" />
-          <span>Claude Code Opus · included app</span>
-        </div>
-        <span className="patch-handoff patch-handoff-implementation"><span className="patch-handoff-line" />Patch &amp; verification</span>
-      </div>
-
-      <div className="patch-workflow-caption">
-        <span>Every fix starts with a failure we can reproduce.</span>
-        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("patch:navigate", { detail: "agents" }))}>
-          Explore the ensemble <PatchIcon name="arrowRight" size={14} />
-        </button>
-      </div>
-    </section>
   );
 }
 
@@ -289,7 +206,7 @@ function Overview({ runs, loading, onStart, starting, filter, onFilter, search, 
         Turn customer reports into reproducible bugs, then fixes you can trust.
       </ViewHeading>
       {error ? <div className="patch-inline-error" role="alert"><PatchIcon name="alert" size={16} />{error}</div> : null}
-      <Workflow />
+      <EnsembleDiagram />
       <div className="patch-feature-grid">
         <SampleReplay starting={starting} onStart={onStart} />
         <EvidenceCard />
@@ -299,48 +216,17 @@ function Overview({ runs, loading, onStart, starting, filter, onFilter, search, 
   );
 }
 
-function AgentsView() {
-  const roles = [
-    ["play", "Execution", "QA engineer", "Runs controlled browser experiments and records reproduction evidence."],
-    ["compass", "Supervisor", "Incident lead", "Schedules experiments, owns hypotheses, and controls stage gates."],
-    ["layers", "Incidents", "SRE analyst", "Reconstructs system behavior from logs and incident signals."],
-  ];
+function AgentsView({ canEdit }) {
   return (
     <>
-      <ViewHeading eyebrow="The ensemble" title="Independent work. Shared evidence." action={<span className="patch-architecture-tag"><span />Role boundaries enforced</span>}>
-        Each role has a clear job, and the evidence ledger keeps every handoff grounded.
+      <ViewHeading
+        eyebrow="The ensemble"
+        title="Independent work. Shared evidence."
+        action={<span className="patch-architecture-tag"><span />Role boundaries enforced</span>}
+      >
+        Each role has one job and its own model. Pairings that need to disagree are checked below.
       </ViewHeading>
-      <section className="patch-architecture-card">
-        <div className="patch-architecture-topline"><span>INVESTIGATION FLOW</span><span>01 — 04</span></div>
-        <div className="patch-architecture-flow">
-          <div className="patch-architecture-entry">
-            <span className="patch-architecture-icon"><PatchIcon name="inbox" size={18} /></span>
-            <span><small>CUSTOMER AGENT</small><strong>Customer intake</strong><small>Gemini Flash</small></span>
-          </div>
-          <span className="patch-architecture-connector"><i /></span>
-          <div className="patch-architecture-team">
-            <div className="patch-architecture-team-head"><span>REPRODUCTION SWARM</span><span>3 roles</span></div>
-            <div className="patch-architecture-role-grid">
-              {roles.map(([icon, title, role, desc], i) => (
-                <article className="patch-architecture-role" key={role}>
-                  <span className="patch-role-index">0{i + 1}</span>
-                  <span className="patch-role-icon"><PatchIcon name={icon} size={16} /></span>
-                  <strong>{title}</strong><small>{role}</small><p>{desc}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-          <span className="patch-architecture-connector"><i /></span>
-          <div className="patch-architecture-exit">
-            <span className="patch-architecture-icon patch-implementation-icon"><PatchIcon name="code" size={18} /></span>
-            <span><small>FIX · INCLUDED APP ONLY</small><strong>Implementation</strong><em>Claude Code Opus · optional</em></span>
-          </div>
-        </div>
-        <div className="patch-architecture-bottom">
-          <span className="patch-architecture-rule"><PatchIcon name="shield" size={16} /><strong>Independent verifier</strong><span>For the included app, protected checks run against the isolated local-memory patch before a verdict is recorded.</span></span>
-          <span className="patch-architecture-ledger"><PatchIcon name="layers" size={15} /> One append-only evidence trail</span>
-        </div>
-      </section>
+      <AgentEnsemble canEdit={canEdit} />
       <section className="patch-principles-grid">
         <article><span>01</span><h2>Evidence over assertion</h2><p>A claim needs a source. A challenge needs a test that can settle it.</p></article>
         <article><span>02</span><h2>Clear responsibility</h2><p>Agents receive only the write permissions needed for their role.</p></article>
@@ -349,7 +235,6 @@ function AgentsView() {
     </>
   );
 }
-
 function SettingsView({ me }) {
   const origin = typeof window !== "undefined" ? window.location.origin : "https://your-app.vercel.app";
   const snippet = [
@@ -528,7 +413,7 @@ export default function Home() {
               <RunTable runs={runs} loading={!runs && !loadError} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch} expanded />
             </>
           ) : null}
-          {view === "agents" ? <AgentsView /> : null}
+          {view === "agents" ? <AgentsView canEdit={!me || me.role === "approver" || me.open} /> : null}
           {view === "settings" ? <SettingsView me={me} /> : null}
         </div>
       </PatchShell>

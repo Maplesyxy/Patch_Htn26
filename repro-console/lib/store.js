@@ -104,6 +104,24 @@ export async function appendEvents(id, events) {
   return last;
 }
 
+/** Small key/value settings, e.g. the agent model selection. */
+export async function readSetting(name) {
+  const key = `repro:setting:${name}`;
+  if (redis) return parse(await redis.get(key));
+  if (!g.__reproSettings) g.__reproSettings = new Map();
+  return g.__reproSettings.get(name) || null;
+}
+
+export async function writeSetting(name, value) {
+  const key = `repro:setting:${name}`;
+  if (redis) await redis.set(key, JSON.stringify(value));
+  else {
+    if (!g.__reproSettings) g.__reproSettings = new Map();
+    g.__reproSettings.set(name, value);
+  }
+  return value;
+}
+
 /** Events with seq > after. */
 export async function readEvents(id, after = 0, max = 500) {
   const start = Math.max(0, Number(after) || 0);
