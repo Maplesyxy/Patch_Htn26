@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
 
 export const PLAN_SCHEMA = {
   type: "object",
@@ -77,9 +78,7 @@ export async function callExecutionModel(config, prompt, signal) {
   const result = await runChild(config.claudeCommand, args, { signal, timeoutMs: 180000 });
   const response = parseJson(result.stdout);
   if (response.is_error || response.type === "error") {
-    const error = new Error("Claude Code could not produce a browser action.");
-    error.retryable = isTransientServiceFailure(JSON.stringify(response));
-    throw error;
+    throw claudeProcessError(result.stdout, "", 0);
   }
   const structured = response.structured_output || response.structuredOutput;
   if (structured && typeof structured === "object") return validateAction(structured);
@@ -109,7 +108,7 @@ async function callGemini(config, model, prompt, responseSchema, signal) {
   const combined = combineSignals(signal, timer);
   let response;
   try {
-    response = await fetch(url, {
+    const options = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -117,7 +116,15 @@ async function callGemini(config, model, prompt, responseSchema, signal) {
         generationConfig: { responseMimeType: "application/json", responseSchema, maxOutputTokens: 1100, temperature: 0.1 },
       }),
       signal: combined,
-    });
+    };
+    response = await fetch(url, options);
+    // A temporary provider outage must not immediately terminate a browser run.
+    // Retry once, sharing the original timeout and cancellation signal.
+    if ([502, 503, 504].includes(response.status)) {
+      await response.body?.cancel();
+      await delay(1000, undefined, { signal: combined });
+      response = await fetch(url, options);
+    }
   } catch (error) {
     if (signal?.aborted) throw abortError();
     throw new Error("Gemini review could not reach the configured model.");
@@ -185,14 +192,26 @@ function runChild(command, args, { signal, timeoutMs }) {
       clearTimeout(killTimer);
       if (settled) return;
       if (code !== 0) {
-        const error = new Error(`Claude Code exited with status ${code}.`);
-        error.retryable = isTransientServiceFailure(stderr);
-        finish(reject, error);
+        finish(reject, claudeProcessError(Buffer.concat(stdout).toString("utf8"), stderr, code));
         return;
       }
       finish(resolve, { stdout: Buffer.concat(stdout).toString("utf8") });
     });
   });
+}
+
+export function claudeProcessError(stdout, stderr, code) {
+  let result = "";
+  try { result = String(parseJson(stdout).result || ""); } catch { /* The CLI may fail before writing JSON. */ }
+  const diagnostic = `${result}\n${stderr}`;
+  const authFailed = /oauth.*expired|failed to authenticate|not logged in|please (?:run.*)?log[ -]?in/i.test(diagnostic);
+  const message = authFailed
+    ? "Claude Code authentication expired or was rejected. Run claude auth login in the worker environment, then retry."
+    : code === 0 ? "Claude Code could not produce a browser action." : `Claude Code exited with status ${code}.`;
+  // Never copy CLI output into the dashboard: it can include prompts and secrets.
+  const error = new Error(message);
+  error.retryable = !authFailed && isTransientServiceFailure(diagnostic);
+  return error;
 }
 
 function validateAction(v) {

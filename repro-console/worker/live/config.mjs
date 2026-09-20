@@ -34,7 +34,7 @@ export async function loadRuntimeConfig(env = process.env, { loadDotenv = true }
   const ingestToken = explicitToken || selectedPair?.token || "";
   const workspace = selectedPair?.workspace || "acme";
   const consoleUrl = String(env.REPRO_CONSOLE_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
-  const browserbaseConfigured = Boolean(env.BROWSERBASE_API_KEY && env.BROWSERBASE_PROJECT_ID);
+  const browserbaseConfigured = Boolean(env.BROWSERBASE_API_KEY);
   const executionModel = env.PATCH_EXECUTION_MODEL || "opus";
   const supervisorModel = env.PATCH_SUPERVISOR_MODEL || "gemini-3.6-flash";
   const incidentsModel = env.PATCH_INCIDENTS_MODEL || "gemini-3.6-flash";
@@ -45,7 +45,7 @@ export async function loadRuntimeConfig(env = process.env, { loadDotenv = true }
   if (!ingestToken) missing.push("REPRO_INGEST_TOKEN or REPRO_INGEST_TOKENS");
   if (workspaceError) missing.push(workspaceError);
   if (!env.GEMINI_API_KEY) missing.push("GEMINI_API_KEY");
-  if (!browserbaseConfigured && !localConfigured) missing.push("BROWSERBASE_API_KEY + BROWSERBASE_PROJECT_ID or Playwright Chromium");
+  if (!browserbaseConfigured && !localConfigured) missing.push("BROWSERBASE_API_KEY or Playwright Chromium");
   if (!await commandExists(claudeCommand)) missing.push("Claude Code CLI (claude)");
 
   return {
@@ -60,7 +60,6 @@ export async function loadRuntimeConfig(env = process.env, { loadDotenv = true }
     browserbase: {
       configured: browserbaseConfigured,
       apiKey: env.BROWSERBASE_API_KEY || "",
-      projectId: env.BROWSERBASE_PROJECT_ID || "",
       apiUrl: env.BROWSERBASE_API_URL || "https://api.browserbase.com/v1",
       connectUrl: env.BROWSERBASE_CONNECT_URL || "wss://connect.browserbase.com",
     },
@@ -130,7 +129,7 @@ export function configForTest(overrides = {}) {
     ingestToken: "test-ingest-token",
     workspace: "test",
     repoConfigured: false,
-    browserbase: { configured: false, apiKey: "", projectId: "", apiUrl: "https://api.browserbase.com/v1", connectUrl: "wss://connect.browserbase.com" },
+    browserbase: { configured: false, apiKey: "", apiUrl: "https://api.browserbase.com/v1", connectUrl: "wss://connect.browserbase.com" },
     local: { configured: true, executablePath: "" },
     models: { execution: "opus", supervisor: "gemini-3.6-flash", incidents: "gemini-3.6-flash" },
     claudeCommand: "claude",

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "runtime": "node worker/live/server.mjs",
+    "test:browserbase": "node scripts/test-browserbase.mjs",
     "dev:live": "node worker/live/dev.mjs dev",
     "start:live": "node worker/live/dev.mjs start"
   },

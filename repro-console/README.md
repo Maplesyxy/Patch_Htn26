@@ -2,6 +2,14 @@
 
 For the current Node live investigation flow, start with the [root README](../README.md) and [Browserbase handoff](../BROWSERBASE_HANDOFF.md). `npm run dev:live` starts the console and private worker; **New report → Start live investigation** launches a URL and report. The Python/JiuwenSwarm examples below remain available as earlier integrations.
 
+## Browserbase integration test
+
+With the console and worker running, run `npm run test:browserbase` from this directory. This opt-in test uses real Browserbase sessions, Gemini, and the authenticated Claude Code CLI, so it consumes provider usage. Configure the same ignored `.env.local` used by the live worker first.
+
+The test investigates two static counter fixtures: a button that adds two instead of one, and a working control that adds one. Playwright fulfills the fixture directly inside the cloud browser; no target site or public tunnel is required. The runtime's real queue, model decisions, browser interactions, screenshots, console event ingestion, live event stream, downloadable artifacts, and session cleanup are exercised. It asserts `reproduced` for the broken fixture and `not_reproduced` for the working control. Test runs remain visible in the dashboard with an explicit integration-test title.
+
+The test only permits clicks and waits on its fixed fixture origin, and disables source editing and network fault injection. It does not test deployment access, the report-form submission UI, or automated source fixes.
+
 A live room for the Repro agent team: the conversation between agents as a group chat, the evidence
 ledger beside it, the pipeline stage on top, and human sign-off for anything that leaves the sandbox.
 
