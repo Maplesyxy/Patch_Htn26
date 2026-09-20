@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "build:demo-static": "node scripts/build-demo-static.mjs",
     "runtime": "node worker/live/server.mjs",
     "test:browserbase": "node scripts/test-browserbase.mjs",
     "dev:live": "node worker/live/dev.mjs dev",

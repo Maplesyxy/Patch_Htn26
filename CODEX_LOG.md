@@ -57,9 +57,3 @@
 - Replaced repetitive simulation disclaimers with a compact Demo label and clearer display titles. Retained all demo execution guards and original event data.
 - Preserved both existing preview investigations and model selections across the local UI rebuild. Production build and desktop/mobile visual checks validate the presentation changes.
 - Clarified the sticky target: phase overview cards now remain at the top of the conversation scroll area, while the general run header scrolls away. Verified Reproduction and Implementation cards stay fixed as their message feeds scroll; tall overviews retain their own bounded scrolling.
-
-### Static demo publication
-
-- Published the demo-only Patch workspace at `patch.pantheonofducks.com` from a private S3 bucket behind CloudFront OAC. The static build stages an allowlisted source copy, keeps runtime APIs and credentials out of the deployment, and serves a locally paced read-only investigation replay.
-- Kept Report a bug visible but disabled in the demo, preserved the read-only About and Agent Ensemble views, and added the white Patch bandage logo for dark backgrounds.
-- The static demo build and all 37 automated tests passed.

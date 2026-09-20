@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS, AGENT_GROUPS, HUMAN, STAGES, PUSHBACK_TYPES, recordTypeForRef } from "@/lib/agents";
 import { reduceEvents } from "@/lib/reduce";
-import { DEMO_TRACE } from "@/lib/demoTrace";
 import PatchShell from "./PatchShell";
 import CodeReview from "./CodeReview";
 import LiveInvestigation from "./LiveInvestigation";
@@ -369,7 +368,7 @@ export default function RunRoom({ runId, preview }) {
   const [me, setMe] = useState(preview ? preview.me : null);
   const [run, setRun] = useState(preview ? preview.run : null);
   const [events, setEvents] = useState(preview ? preview.events : []);
-  const [conn, setConn] = useState(preview?.demo ? "demo" : "connecting");
+  const [conn, setConn] = useState("connecting");
   const [error, setError] = useState("");
   const [agentFilter, setAgentFilter] = useState(null);
   const [showActivity, setShowActivity] = useState(true);
@@ -446,7 +445,7 @@ export default function RunRoom({ runId, preview }) {
 
   // The sample replay is paced locally; the fixture/API event order is unchanged.
   useEffect(() => {
-    if (!run || !run.simulated || !me || (me.role !== "approver" && !preview?.demo)) return;
+    if (!run || !run.simulated || !me || me.role !== "approver") return;
     const controller = new AbortController();
     const { signal } = controller;
     let stopped = false;
@@ -485,21 +484,6 @@ export default function RunRoom({ runId, preview }) {
 
     (async () => {
       let index = run.demoIndex || 0;
-      if (preview?.demo) {
-        while (!stopped && !signal.aborted && index < DEMO_TRACE.length) {
-          if (replayPausedRef.current) { await wait(120); continue; }
-          const item = DEMO_TRACE[index];
-          const jitter = 0.8 + Math.random() * 0.4;
-          if (!await waitPausable(Math.max(160, item.delay * jitter))) break;
-          const nextIndex = index + 1;
-          const event = { ...item.event, seq: nextIndex, ts: Date.now() };
-          setEvents((previous) => [...previous, event]);
-          setRun((previous) => previous ? { ...previous, demoIndex: nextIndex } : previous);
-          index = nextIndex;
-        }
-        if (!signal.aborted && index >= DEMO_TRACE.length) setReplayDone(true);
-        return;
-      }
       while (!stopped && !signal.aborted) {
         if (replayPausedRef.current) {
           await wait(120);
@@ -689,7 +673,7 @@ export default function RunRoom({ runId, preview }) {
     }
   }
 
-  const canAct = !preview?.demo && me && me.role === "approver";
+  const canAct = me && me.role === "approver";
   const pending = state.approvals.filter((a) => !a.decision);
   const records = Object.values(state.ledger[tab] || {}).sort((a, b) => a._firstSeq - b._firstSeq);
   const liveBrowser = run && run.simulated ? null : state.browsers.find((b) => b.session_id === watch && b.live_url) || state.browsers.find((b) => b.live_url);
@@ -735,11 +719,11 @@ export default function RunRoom({ runId, preview }) {
   }
 
   if (error && !run) {
-    return <PatchShell active="investigations" title="Investigation" onCodeReview={preview?.demo ? null : () => setReviewOpen(true)} me={me} demoOnly={!!preview?.demo}><main className="room-load-error"><p className="notice bad" role="alert">{error}</p><a className="btn" href="/">Back to investigations</a></main></PatchShell>;
+    return <PatchShell active="investigations" title="Investigation" onCodeReview={() => setReviewOpen(true)} me={me}><main className="room-load-error"><p className="notice bad" role="alert">{error}</p><a className="btn" href="/">Back to investigations</a></main></PatchShell>;
   }
 
   return (
-    <PatchShell active="investigations" title="Investigation" onNewReport={preview?.demo ? null : () => { window.location.href = "/?intake=1"; }} onCodeReview={preview?.demo ? null : () => setReviewOpen(true)} me={me} demoOnly={!!preview?.demo}>
+    <PatchShell active="investigations" title="Investigation" onNewReport={() => { window.location.href = "/?intake=1"; }} onCodeReview={() => setReviewOpen(true)} me={me}>
     {liveRun ? (
       <LiveInvestigation
         run={run}
@@ -769,12 +753,12 @@ export default function RunRoom({ runId, preview }) {
             <div className="room-title">
               <h1>{liveRun ? "Conversation & evidence" : run ? roomTitle : "Loading investigation"}</h1>
               <div className="room-meta">
-                {!liveRun ? <span className={`conn ${conn}`}>{conn === "demo" ? "Preview" : conn === "live" ? "Connected stream" : conn === "reconnecting" ? "Reconnecting" : "Connecting"}</span> : null}
+                {!liveRun ? <span className={`conn ${conn}`}>{conn === "live" ? "Connected stream" : conn === "reconnecting" ? "Reconnecting" : "Connecting"}</span> : null}
                 {run && run.simulated ? <span className="pill sim">Demo</span> : run && !liveRun ? <span>{run.workspace}</span> : null}
                 {state.counts.rejected ? <span className="bad-text">{state.counts.rejected} writes refused</span> : null}
               </div>
             </div>
-            {preview?.demo ? null : <a className="audit-action" href={`/api/runs/${runId}/export`}>Export audit <span aria-hidden="true">↗</span></a>}
+            <a className="audit-action" href={`/api/runs/${runId}/export`}>Export audit <span aria-hidden="true">↗</span></a>
           </div>
         </div>
         {!liveRun ? <>
@@ -919,7 +903,7 @@ export default function RunRoom({ runId, preview }) {
         </ul>
       </aside>
     </div>
-      {!preview?.demo ? <CodeReview runId={runId} open={reviewOpen} onClose={() => setReviewOpen(false)} /> : null}
+      <CodeReview runId={runId} open={reviewOpen} onClose={() => setReviewOpen(false)} />
     </PatchShell>
   );
 }

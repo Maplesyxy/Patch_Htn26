@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
-  ...(process.env.NEXT_PUBLIC_DEMO_ONLY === "1" ? { output: "export", trailingSlash: true } : {}),
   async headers() {
     return [
       {

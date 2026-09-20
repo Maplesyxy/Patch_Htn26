@@ -59,7 +59,7 @@ function initials(name) {
   return parts.slice(0, 2).map((part) => part[0].toUpperCase()).join("") || "HT";
 }
 
-export default function PatchShell({ children, active = "overview", title = "Overview", onNavigate, onNewReport, onCodeReview, me, onSignOut, demoOnly = false }) {
+export default function PatchShell({ children, active = "overview", title = "Overview", onNavigate, onNewReport, onCodeReview, me, onSignOut }) {
   const runtimeHref = "/?view=settings";
   const settingsClick = (event) => {
     if (!onNavigate || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -75,22 +75,22 @@ export default function PatchShell({ children, active = "overview", title = "Ove
           <span className="patch-workspace-mark"><span>H</span></span>
           <span className="patch-workspace-label"><strong>Hack the North</strong><small>Workspace</small></span>
         </div>
-        {onNewReport || demoOnly ? <button type="button" className="patch-sidebar-report" onClick={onNewReport} disabled={demoOnly} title={demoOnly ? "Available in the live workspace" : undefined}><PatchIcon name="plus" size={16} /><span>Report a bug</span></button> : null}
+        {onNewReport ? <button type="button" className="patch-sidebar-report" onClick={onNewReport}><PatchIcon name="plus" size={16} /><span>Report a bug</span></button> : null}
         <nav className="patch-sidebar-nav" aria-label="Workspace navigation">
           <span className="patch-nav-caption">Workspace</span>
           {PRIMARY_LINKS.map(([name, label, icon]) => (
             <NavLink key={name} name={name} label={label} icon={icon} active={active} onNavigate={onNavigate} />
           ))}
-          {!demoOnly && onCodeReview ? (
+          {onCodeReview ? (
             <button type="button" className="patch-nav-link patch-nav-button" onClick={onCodeReview}>
               <PatchIcon name="code" size={18} /><span>Code review</span>
             </button>
           ) : null}
-          {!demoOnly ? <><div className="patch-nav-divider" />
+          <div className="patch-nav-divider" />
           <span className="patch-nav-caption">Configuration</span>
           <a className={"patch-nav-link patch-settings-nav" + (active === "settings" ? " is-active" : "")} href={runtimeHref} onClick={settingsClick} aria-current={active === "settings" ? "page" : undefined}>
             <PatchIcon name="settings" size={18} /><span>Runtime settings</span>
-          </a></> : null}
+          </a>
         </nav>
         <div className="patch-sidebar-spacer" />
         <div className="patch-season-badge"><span className="patch-season-mark">H</span><span><strong>Hack the North</strong><small>2026 · Builder workspace</small></span></div>
@@ -108,7 +108,7 @@ export default function PatchShell({ children, active = "overview", title = "Ove
             <span>{title}</span>
           </div>
           <div className="patch-topbar-actions">
-            <span className="patch-environment-badge"><i />{demoOnly ? "Demo" : "Development"}</span>
+            <span className="patch-environment-badge"><i />Development</span>
             <span className="patch-topbar-divider" />
             <a className="patch-github-link" href="https://github.com/Maplesyxy/Patch_Htn26" target="_blank" rel="noreferrer"><PatchIcon name="github" size={16} /><span>GitHub</span><PatchIcon name="arrowUpRight" size={12} /></a>
           </div>
@@ -117,8 +117,8 @@ export default function PatchShell({ children, active = "overview", title = "Ove
           {PRIMARY_LINKS.map(([name, label, icon]) => (
             <NavLink key={name} name={name} label={label} icon={icon} active={active} onNavigate={onNavigate} mobile />
           ))}
-          {!demoOnly ? <NavLink name="settings" label="Settings" icon="settings" active={active} onNavigate={onNavigate} mobile /> : null}
-          {onNewReport || demoOnly ? <button type="button" className="patch-mobile-report" onClick={onNewReport} disabled={demoOnly} title={demoOnly ? "Available in the live workspace" : undefined}><PatchIcon name="plus" size={14} /><span>Report a bug</span></button> : null}
+          <NavLink name="settings" label="Settings" icon="settings" active={active} onNavigate={onNavigate} mobile />
+          {onNewReport ? <button type="button" className="patch-mobile-report" onClick={onNewReport}><PatchIcon name="plus" size={14} /><span>Report a bug</span></button> : null}
         </nav>
         <main className="patch-main">
           {children}

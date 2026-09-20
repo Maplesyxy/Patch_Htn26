@@ -1,7 +1,5 @@
 node_modules
 .next
-.static-demo-build
-static-demo-out
 .env
 .env.local
 .vercel
