@@ -321,6 +321,12 @@ export async function runInvestigation(run) {
         } finally {
           clearTimeout(fixTimer);
         }
+        if (signal.aborted) throw abortError();
+        if (["blocked", "rejected"].includes(packet.fix?.status)) {
+          const fixAgent = packet.fix.status === "rejected" ? "release-verifier" : "software-engineer";
+          const label = packet.fix.status === "rejected" ? "Source patch did not pass verification." : "Source fix work is blocked.";
+          await activity(fixAgent, "blocked", label, packet.fix.summary || "The reproduction remains available; no verified fix was produced.", stage, activityStep);
+        }
       }
     }
   } catch (error) {

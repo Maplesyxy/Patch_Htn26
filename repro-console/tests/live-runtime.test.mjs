@@ -265,6 +265,12 @@ test("approver, workspace, same-origin, and path guards match live API boundarie
   assert.equal(isSameOriginMutation(new Request("https://patch.test/api/investigations", { headers: { origin: "https://patch.test" } })), true);
   assert.equal(isSameOriginMutation(new Request("https://patch.test/api/investigations", { headers: { origin: "https://evil.test" } })), false);
   assert.equal(isSameOriginMutation(new Request("https://patch.test/api/investigations")), true);
+  const canonicalLocalRequest = (origin) => new Request("http://localhost:3000/api/investigations", {
+    headers: { host: "127.0.0.1:3000", origin, "x-forwarded-host": "attacker.test" },
+  });
+  assert.equal(isSameOriginMutation(canonicalLocalRequest("http://127.0.0.1:3000")), true);
+  assert.equal(isSameOriginMutation(canonicalLocalRequest("http://localhost:3000")), false);
+  assert.equal(isSameOriginMutation(canonicalLocalRequest("http://attacker.test")), false);
   assert.equal(safeRunId("run-20260920-ab12cd"), true);
   assert.equal(safeRunId("../secret"), false);
   assert.equal(safeArtifactName("screenshot-1.png"), true);

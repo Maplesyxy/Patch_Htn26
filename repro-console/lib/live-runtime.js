@@ -209,7 +209,17 @@ export function canAccessRun(who, run) {
 export function isSameOriginMutation(req) {
   const origin = req.headers.get("origin");
   if (!origin) return true;
-  try { return new URL(origin).origin === new URL(req.url).origin; } catch { return false; }
+  try {
+    const requestUrl = new URL(req.url);
+    const host = req.headers.get("host");
+    let requestOrigin = requestUrl.origin;
+    if (host) {
+      const hostUrl = new URL(`${requestUrl.protocol}//${host}`);
+      if (hostUrl.username || hostUrl.password || hostUrl.pathname !== "/" || hostUrl.search || hostUrl.hash) return false;
+      requestOrigin = hostUrl.origin;
+    }
+    return new URL(origin).origin === requestOrigin;
+  } catch { return false; }
 }
 
 export function safeRunId(value) {
