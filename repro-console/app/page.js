@@ -301,9 +301,9 @@ function Overview({ runs, loading, onStart, starting, filter, onFilter, search, 
 
 function AgentsView() {
   const roles = [
-    ["support", "Customer intake", "Support engineer", "Shapes the report into sourced claims and requests missing details.", "Gemini Flash"],
-    ["sre", "Supervisor", "Incident lead", "Groups related evidence, owns hypotheses, and moves stage gates."],
-    ["execution", "Execution", "QA engineer", "Runs controlled browser experiments and records reproduction evidence."],
+    ["play", "Execution", "QA engineer", "Runs controlled browser experiments and records reproduction evidence."],
+    ["compass", "Supervisor", "Incident lead", "Schedules experiments, owns hypotheses, and controls stage gates."],
+    ["layers", "Incidents", "SRE analyst", "Reconstructs system behavior from logs and incident signals."],
   ];
   return (
     <>
@@ -315,17 +315,17 @@ function AgentsView() {
         <div className="patch-architecture-flow">
           <div className="patch-architecture-entry">
             <span className="patch-architecture-icon"><PatchIcon name="inbox" size={18} /></span>
-            <span><small>START</small><strong>Customer report</strong></span>
+            <span><small>CUSTOMER AGENT</small><strong>Customer intake</strong><small>Gemini Flash</small></span>
           </div>
           <span className="patch-architecture-connector"><i /></span>
           <div className="patch-architecture-team">
             <div className="patch-architecture-team-head"><span>REPRODUCTION SWARM</span><span>3 roles</span></div>
             <div className="patch-architecture-role-grid">
-              {roles.map(([icon, title, role, desc, model], i) => (
+              {roles.map(([icon, title, role, desc], i) => (
                 <article className="patch-architecture-role" key={role}>
                   <span className="patch-role-index">0{i + 1}</span>
                   <span className="patch-role-icon"><PatchIcon name={icon} size={16} /></span>
-                  <strong>{title}</strong><small>{role}</small>{model ? <em>{model}</em> : null}<p>{desc}</p>
+                  <strong>{title}</strong><small>{role}</small><p>{desc}</p>
                 </article>
               ))}
             </div>
@@ -392,7 +392,7 @@ function SettingsView({ me }) {
       <section className="patch-settings-help">
         <span className="patch-settings-help-icon"><PatchIcon name="book" size={17} /></span>
         <span><strong>Setting up the Repro runtime?</strong><small>Read the deployment guide for ingest tokens, worker setup, and the simulated replay.</small></span>
-        <a href="https://github.com/Maplesyxy/Patch_Htn26#deploy" target="_blank" rel="noreferrer">Open setup guide <PatchIcon name="arrowUpRight" size={14} /></a>
+        <a href="https://github.com/Maplesyxy/Patch_Htn26/blob/main/repro-console/README.md#deploy" target="_blank" rel="noreferrer">Open setup guide <PatchIcon name="arrowUpRight" size={14} /></a>
       </section>
     </>
   );
