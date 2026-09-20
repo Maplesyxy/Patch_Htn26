@@ -232,3 +232,7 @@ fieldset.kind { border: 0; padding: 0; margin: 0 0 20px; }
 .banner > div { position: relative; z-index: 1; }
 .lede { font-size: 17px; color: var(--ink-soft); max-width: 620px; margin: 0 0 26px; }
 .card-art.short { height: 74px; font-size: 21px; }
+
+.availability { margin: -10px 0 18px; font-size: 13.5px; color: var(--muted); }
+.tables-left { font-weight: 600; color: var(--forest); }
+.tables-none { font-weight: 600; color: var(--bad); }

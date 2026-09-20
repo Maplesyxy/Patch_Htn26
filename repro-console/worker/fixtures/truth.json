@@ -50,7 +50,7 @@
     "confirmed_defect_accuracy": "1 of 1 real defects found, 0 false positives",
     "false_merges": "T-03 and T-12 must NOT land in the duplicate-reservations incident",
     "unsupported_resolved_claims": "target 0",
-    "faults_expected": "F1, F2, F3, F5, F6, F7, F8, F9 are real defects (8). F4 is not a defect. F5, F6, F7, F8 and F9 are reachable by an ordinary person using the site; F1 needs fault injection."
+    "faults_expected": "10 real defects, 1 non-defect (F4). Loud tier: B1, F5, F6, F7, F8, F9. Quiet tier: F1, F2, F3, B2. An agent reporting 11 has a false positive."
   },
   "seeded_faults": {
     "F1_duplicate_reservations": {
@@ -61,7 +61,9 @@
       "correct_fix": "Server-side: reject or return the existing reservation when the idempotency key has been seen.",
       "wrong_fix": "Disabling the button. Already shipped on 2026-09-12 and it did nothing.",
       "verified": "3/3 clean = 1 reservation, 3/3 dropped = 2, across Chromium, WebKit and Firefox.",
-      "encounterable_by_hand": "No. Needs a dropped response. This is the one the browser matrix exists for."
+      "encounterable_by_hand": "No. Needs a dropped response. This is the one the browser matrix exists for.",
+      "tier": "quiet",
+      "in_fix_allowlist": true
     },
     "F2_reservation_ordering": {
       "where": "app/reservations/page.js",
@@ -70,7 +72,9 @@
       "visibility": "Pure UI, no network needed, but only appears with that exact mix of bookings.",
       "correct_fix": "Zero-pad the slot list, or sort on parsed hours. Padding the data is the better fix.",
       "verified": "A-1021 with 9:00, 12:00, 20:00 renders 12:00 -> 20:00 -> 9:00.",
-      "encounterable_by_hand": "Yes, if the account holds both a 9:00 and a 20:00 booking on one date."
+      "encounterable_by_hand": "Yes, if the account holds both a 9:00 and a 20:00 booking on one date.",
+      "tier": "quiet",
+      "in_fix_allowlist": false
     },
     "F3_party_size_clamp": {
       "where": "app/api/bookings/route.js",
@@ -79,7 +83,9 @@
       "visibility": "The UI and the confirmation both look correct. Only the system of record disagrees. This is the fault that punishes an agent for trusting the screen.",
       "correct_fix": "Reject the booking with a clear message, or seat it and say so. Do not silently disagree with the confirmation.",
       "verified": "party_size 12 -> confirmation says 12, database row says 8.",
-      "encounterable_by_hand": "Yes. Book for 10 or 12 and read the reservation afterwards."
+      "encounterable_by_hand": "Yes. Book for 10 or 12 and read the reservation afterwards.",
+      "tier": "quiet",
+      "in_fix_allowlist": true
     },
     "F4_duplicate_emails_NOT_A_BUG": {
       "where": "seeded data only",
@@ -93,7 +99,9 @@
       "encounterable_by_hand": "Yes, immediately. This is the most infuriating one and the easiest to report.",
       "visibility": "The DELETE returns 200 and the row really is marked. Nothing errors anywhere. Only the read path is wrong.",
       "correct_fix": "Filter cancelled rows in listReservations (or delete the row). The endpoint is not the bug; the query is.",
-      "trap": "An agent that only reads the cancel endpoint will call it correct. The defect is one layer away from the symptom."
+      "trap": "An agent that only reads the cancel endpoint will call it correct. The defect is one layer away from the symptom.",
+      "tier": "loud",
+      "in_fix_allowlist": true
     },
     "F6_duplicate_slot_no_check": {
       "where": "app/api/bookings/route.js",
@@ -101,7 +109,9 @@
       "trigger": "Book, then book the same thing again.",
       "encounterable_by_hand": "Yes. This is the double-booking a real person actually hits, with no network fault needed.",
       "correct_fix": "Reject or return the existing reservation on an exact duplicate. Shares a root cause family with F1: the write path has no uniqueness or idempotency notion at all.",
-      "note": "Booking two DIFFERENT restaurants at the same time is legitimate and must keep working. Only exact duplicates are the defect."
+      "note": "Booking two DIFFERENT restaurants at the same time is legitimate and must keep working. Only exact duplicates are the defect.",
+      "tier": "loud",
+      "in_fix_allowlist": true
     },
     "F7_date_shows_a_day_early": {
       "where": "app/reservations/ReservationList.jsx",
@@ -109,21 +119,54 @@
       "trigger": "Any reservation, viewed from a timezone west of UTC.",
       "encounterable_by_hand": "Yes, instantly, on this machine (EDT): stored 2026-10-08 renders 10/7/2026.",
       "visibility": "Invisible in UTC and east of it. A developer in London cannot reproduce what a customer in Toronto sees.",
-      "correct_fix": "Format the date string directly, or parse as local time. Do not put it through Date."
+      "correct_fix": "Format the date string directly, or parse as local time. Do not put it through Date.",
+      "tier": "loud",
+      "in_fix_allowlist": false
     },
     "F8_past_dates_accepted": {
       "where": "app/api/bookings/route.js (and the date input has no min)",
       "what": "The date is only checked against a YYYY-MM-DD pattern. 2019-01-01 books fine.",
       "trigger": "Mistype the year, or pick a past date in the picker.",
       "encounterable_by_hand": "Yes.",
-      "correct_fix": "Reject dates before today, server-side. A min attribute on the input is not enough."
+      "correct_fix": "Reject dates before today, server-side. A min attribute on the input is not enough.",
+      "tier": "loud",
+      "in_fix_allowlist": true
     },
     "F9_search_is_case_sensitive": {
       "where": "app/SearchableList.jsx",
       "what": "Filters with String.includes and no case folding, so 'nori' finds nothing and 'Nori' finds Nori House.",
       "trigger": "Search in lower case, which is what people type.",
       "encounterable_by_hand": "Yes. Verified: 'Nori' 1 result, 'nori' 0 results.",
-      "correct_fix": "Fold both sides to lower case before comparing."
+      "correct_fix": "Fold both sides to lower case before comparing.",
+      "tier": "loud",
+      "in_fix_allowlist": false
+    },
+    "B1_availability_never_decrements": {
+      "tier": "loud",
+      "where": "lib/store.js bookedForSlot",
+      "what": "The capacity count filters on r.cancelled_at, so it counts only CANCELLED reservations. It is effectively always zero, so every sitting reports all four tables free forever. Nothing enforces capacity on the write path either.",
+      "trigger": "Book the same restaurant, date and time more than four times and watch the counter.",
+      "encounterable_by_hand": "Yes, in about twenty seconds. Verified: 6 bookings into 4 tables, still reports '4 of 4 left'.",
+      "why_it_matters": "Availability is the core promise of a booking site. This is not a cosmetic defect: the restaurant is oversold.",
+      "correct_fix": "Invert the filter (count rows WITHOUT cancelled_at) and reject bookings once a sitting is full.",
+      "in_fix_allowlist": true
+    },
+    "B2_reservation_list_silently_capped": {
+      "tier": "quiet",
+      "where": "lib/store.js listReservations",
+      "what": "listReservations slices to the first 10 rows under a RESERVATION_PAGE constant, with no pagination anywhere in the UI. An eleventh booking is created, charged and emailed, but never appears in the customer's list.",
+      "trigger": "Hold more than ten reservations on one account.",
+      "encounterable_by_hand": "Only with 11+ bookings, which no casual click-through reaches. Verified: 13 created, 13 request-log rows, 13 confirmation emails, 10 visible.",
+      "why_it_is_hard": "Every surface agrees except the one that matters. The server says success, the email arrives, the log has the row. Only the list is short, and nothing says it was truncated.",
+      "correct_fix": "Paginate properly or drop the cap. The write path is correct; the read path lies by omission.",
+      "in_fix_allowlist": true
     }
+  },
+  "fix_allowlist": {
+    "files": [
+      "booking-app/app/api/bookings/route.js",
+      "booking-app/lib/store.js"
+    ],
+    "note": "worker/live/booking-fix.mjs will only replace these two files. Faults outside them (F2 sort, F7 date rendering, F9 search) can be reported and reproduced but not auto-fixed until the allowlist grows."
   }
 }

@@ -30,3 +30,6 @@ export const SLOTS = ["9:00", "9:30", "12:00", "12:30", "18:00", "18:30", "19:00
 export const PARTY_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12];
 
 export const MAX_PARTY = 8;   // tables physically seat 8; larger parties go through events
+
+// Every restaurant runs four tables per sitting.
+export const TABLES_PER_SLOT = 4;

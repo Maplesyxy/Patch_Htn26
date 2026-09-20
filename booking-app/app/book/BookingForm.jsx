@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { newRequestIds, postBooking } from "@/lib/apiClient";
-import { PARTY_SIZES, SLOTS, byId } from "@/lib/restaurants";
+import { PARTY_SIZES, SLOTS, TABLES_PER_SLOT, byId } from "@/lib/restaurants";
 
 export default function BookingForm({ account, restaurant, slot: initialSlot }) {
   const [date, setDate] = useState("");
@@ -14,6 +14,7 @@ export default function BookingForm({ account, restaurant, slot: initialSlot }) 
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [mine, setMine] = useState(null);
+  const [avail, setAvail] = useState(null);
 
   const place = byId(restaurant);
 
@@ -26,6 +27,17 @@ export default function BookingForm({ account, restaurant, slot: initialSlot }) 
   }
 
   useEffect(() => { refresh(); }, [account]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadAvailability() {
+    if (!date) { setAvail(null); return; }
+    try {
+      const res = await fetch(`/api/availability?restaurant=${encodeURIComponent(restaurant)}&date=${encodeURIComponent(date)}`, { cache: "no-store" });
+      const d = await res.json();
+      setAvail(res.ok ? d.availability : null);
+    } catch { setAvail(null); }
+  }
+
+  useEffect(() => { loadAvailability(); }, [date, restaurant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit(e) {
     e.preventDefault();
@@ -41,6 +53,7 @@ export default function BookingForm({ account, restaurant, slot: initialSlot }) 
     } finally {
       setSubmitting(false);
       refresh();
+      loadAvailability();
     }
   }
 
@@ -56,6 +69,15 @@ export default function BookingForm({ account, restaurant, slot: initialSlot }) 
         <select id="slot" name="slot" value={slot} onChange={(e) => setSlot(e.target.value)}>
           {SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
+        {avail && avail[slot] ? (
+          <p className="availability">
+            <span className={avail[slot].remaining === 0 ? "tables-none" : "tables-left"}>
+              {avail[slot].remaining} of {avail[slot].tables} tables left
+            </span>{" "}at {slot}
+          </p>
+        ) : (
+          <p className="availability muted">Pick a date to see what is free.</p>
+        )}
 
         <label htmlFor="party">Party size</label>
         <select id="party" name="party" value={party} onChange={(e) => setParty(Number(e.target.value))}>

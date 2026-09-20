@@ -54,9 +54,22 @@ export async function nextReservationNumber() {
 }
 
 export async function addReservation(row) { await push(K.reservations, "reservations", row); }
+
+// Accounts accumulate history quickly, so the list is trimmed to the most recent page.
+const RESERVATION_PAGE = 10;
+
 export async function listReservations(account) {
   const rows = await readAll(K.reservations, "reservations");
-  return account ? rows.filter((r) => r.account === account) : rows;
+  const mine = account ? rows.filter((r) => r.account === account) : rows;
+  return mine.slice(0, RESERVATION_PAGE);
+}
+
+/** How many of a sitting's tables are already taken. */
+export async function bookedForSlot(restaurant, date, slot) {
+  const rows = await readAll(K.reservations, "reservations");
+  return rows.filter(
+    (r) => r.restaurant === restaurant && r.date === date && r.slot === slot && r.cancelled_at
+  ).length;
 }
 
 /** Marks a reservation cancelled. Returns the updated row, or null if there is no such id. */
