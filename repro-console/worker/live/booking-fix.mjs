@@ -115,7 +115,7 @@ export function prepareBookingFixEvidence(packet = {}, baseResult = {}) {
     }) : [];
   const fault = experiment.networkFault && typeof experiment.networkFault === "object" ? {
     mode: take(experiment.networkFault.mode, 40), requestId: take(experiment.networkFault.requestId, 40),
-    path: take(experiment.networkFault.path, 240), used: Boolean(experiment.networkFault.used),
+    path: take(experiment.networkFault.path, 240), used: Boolean(experiment.networkFault.used), applied: Boolean(experiment.networkFault.applied),
     upstreamStatus: Number.isInteger(experiment.networkFault.upstreamStatus) ? experiment.networkFault.upstreamStatus : undefined,
     times: Number.isInteger(experiment.networkFault.times) ? experiment.networkFault.times : undefined,
   } : null;
@@ -146,12 +146,19 @@ function minimalEnv({ server = false, claude = false } = {}) {
     if (process.env[name]) env[name] = process.env[name];
   }
   if (server) Object.assign(env, { NODE_ENV: "development", NEXT_TELEMETRY_DISABLED: "1", SANDBOX_ADMIN: "" });
-  if (claude) {
-    for (const name of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL"]) {
-      if (process.env[name]) env[name] = process.env[name];
-    }
-    env.CI = "1";
+  if (claude) Object.assign(env, claudeEnvironment(process.env));
+  return env;
+}
+
+export function claudeEnvironment(source = process.env) {
+  const env = {};
+  for (const name of [
+    "USER", "LOGNAME", "CLAUDE_CONFIG_DIR",
+    "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL",
+  ]) {
+    if (source[name]) env[name] = source[name];
   }
+  env.CI = "1";
   return env;
 }
 

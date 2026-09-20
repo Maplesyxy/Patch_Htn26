@@ -2,6 +2,12 @@
 
 The Node runner under `repro-console/worker/live/` is the URL + bug-report path used by **Start live investigation**. The earlier Python matrix (`repro-console/worker/browser_lab.py`) is a separate booking-specific experiment. The sample replay remains explicitly simulated.
 
+## What Browserbase adds
+
+Local Chromium already runs real browser actions and sends screenshots, browser telemetry, and agent activity to the console. Browserbase moves that browser into a managed cloud session and adds an embeddable live view and a session recording link. The report intake, agent loop, evidence, source-fix handoff, and phase transitions use the same contracts for both providers.
+
+Adding credentials makes the cloud provider available; it does not make a loopback URL reachable from the cloud. A teammate must also deploy or tunnel the booking app, select Browserbase in the launch form, and use that public URL. Set `PATCH_BOOKING_APP_URL` to the same origin if that round should invoke the included source-fix adapter. Generic website URLs can be investigated, but automated source edits currently target only the included booking app.
+
 ## Teammate setup
 
 Put `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` in the ignored `repro-console/.env.local` on the machine running the worker. Never commit either value. Cloud browsers need a publicly reachable target URL; the included app on `127.0.0.1:3100` is usable only by the explicit local-browser provider until it is deployed or tunneled.

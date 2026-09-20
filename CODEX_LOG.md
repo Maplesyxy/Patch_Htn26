@@ -29,3 +29,11 @@
 - Ran the protected booking suite on the seeded app: repeated-key sequential and concurrent checks failed as expected; GET, validation, distinct keys, account isolation, and missing-key controls passed.
 - Browserbase session creation, live view, and release are implemented against the official API contract. Live cloud testing is pending teammate credentials. Source verification is scoped to the included app's isolated local-memory store; the suite does not validate Redis behavior.
 - Complete end-to-end model-loop validation remains pending at this checkpoint.
+
+### Live flow validation and teammate handoff
+
+- Confirmed a real Gemini intake and a live local investigation reaching Claude browser actions and Gemini supervision. A slow subsequent Claude decision stopped that round as blocked; it did not produce a product verdict. Added a three-minute action deadline and one bounded transient retry. A complete autonomous round still needs confirmation.
+- Verified cancellation closes the local browser and produces `RUN_CANCELLED`. Fixed loopback launch-origin validation and the live inspector's missing React state import; the production console build passed.
+- Ran a controlled Chromium trial against the included booking app: one clean click produced one reservation, one confirmation email, and one POST. Dropping the observed POST response after upstream completion made the client retry, producing two of each from one click. This trial used scripted browser actions to validate the adapter and evidence handoff.
+- The protected baseline again failed only sequential and concurrent repeated-key checks. The first real implementation handoff exposed a child-process environment issue: Claude was logged in in the parent shell, but its restricted environment omitted the user identity needed to find macOS credentials. Preserving `USER` and `LOGNAME` restored login discovery. The Claude child still excludes Gemini, Browserbase, and runtime secrets, with an added isolation regression test.
+- Browserbase credentials and cloud-session validation remain with the teammate; `BROWSERBASE_HANDOFF.md` describes the public target URL, provider contract, and source-origin configuration. The final real implementation check is recorded separately below.

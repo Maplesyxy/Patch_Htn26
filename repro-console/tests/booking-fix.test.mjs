@@ -5,12 +5,30 @@ import os from "node:os";
 import path from "node:path";
 import {
   bookingTargetMatches,
+  claudeEnvironment,
   parseClaudeOutput,
   parseRegressionOutput,
   prepareBookingFixEvidence,
   runBookingFix,
   validateClaudeEdits,
 } from "../worker/live/booking-fix.mjs";
+
+test("Claude child environment retains account lookup context but excludes unrelated runtime secrets", () => {
+  const env = claudeEnvironment({
+    USER: "synthetic-user", LOGNAME: "synthetic-user", CLAUDE_CONFIG_DIR: "/tmp/claude-config",
+    ANTHROPIC_API_KEY: "anthropic-test", CLAUDE_CODE_OAUTH_TOKEN: "oauth-test",
+    GEMINI_API_KEY: "gemini-test", BROWSERBASE_API_KEY: "browserbase-test", PATCH_RUNTIME_TOKEN: "runtime-test",
+  });
+  assert.equal(env.USER, "synthetic-user");
+  assert.equal(env.LOGNAME, "synthetic-user");
+  assert.equal(env.CLAUDE_CONFIG_DIR, "/tmp/claude-config");
+  assert.equal(env.ANTHROPIC_API_KEY, "anthropic-test");
+  assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, "oauth-test");
+  assert.equal(env.CI, "1");
+  assert.equal("GEMINI_API_KEY" in env, false);
+  assert.equal("BROWSERBASE_API_KEY" in env, false);
+  assert.equal("PATCH_RUNTIME_TOKEN" in env, false);
+});
 
 test("source adapter matches only the configured booking app origin", () => {
   assert.equal(bookingTargetMatches("http://127.0.0.1:3100/bookings", "http://127.0.0.1:3100"), true);
@@ -63,7 +81,7 @@ test("fix prompt evidence preserves bounded orchestrator observations, actions, 
     experiment: {
       id: "EXP-1", result: "reproduced", expected: "one reservation", supervisorSummary: "Two reservations followed the retry.",
       observed: Array.from({ length: 8 }, (_, index) => ({ step: index + 1, action: "click E1", completed: true, result: `Observed action ${index}`, observation: "OBS-003" })),
-      networkFault: { mode: "drop_response", path: "/api/bookings", used: true, upstreamStatus: 201, times: 1 },
+      networkFault: { mode: "drop_response", path: "/api/bookings", used: true, applied: true, upstreamStatus: 201, times: 1 },
     },
   }, {
     exitCode: 1,
@@ -80,6 +98,7 @@ test("fix prompt evidence preserves bounded orchestrator observations, actions, 
   assert.equal(evidence.experiment.observed.length, 6);
   assert.equal(evidence.experiment.observed.at(-1).step, 8);
   assert.equal(evidence.experiment.networkFault.used, true);
+  assert.equal(evidence.experiment.networkFault.applied, true);
   assert.equal(evidence.experiment.supervisorSummary, "Two reservations followed the retry.");
   assert.equal(evidence.telemetry.length, 8);
   assert.equal(evidence.telemetry.at(-1).detail, "Observed response 11");
