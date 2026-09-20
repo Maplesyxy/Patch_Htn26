@@ -9,3 +9,5 @@ __pycache__/
 .DS_Store
 /repro-handoff.zip
 repro-handoff/
+.patch-runs/
+.patch-worktrees/

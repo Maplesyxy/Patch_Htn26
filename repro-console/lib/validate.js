@@ -1,19 +1,56 @@
 import { AGENTS, MESSAGE_TYPES, LEDGER_WRITERS, QA_CLAIM_FIELDS, STAGES } from "./agents.js";
+import { redactSensitive } from "./customer.js";
 
-const KINDS = ["message", "ledger", "stage", "tool", "approval", "browser", "system"];
+const KINDS = ["message", "ledger", "stage", "tool", "activity", "approval", "browser", "system"];
 const BROWSER_AGENTS = ["qa-engineer", "release-verifier"]; // the only agents with a browser
+const ACTIVITY_STATUSES = ["thinking", "acting", "observing", "done", "blocked", "idle"];
+const RUN_PHASES = ["S0", "S1", "S2", "S3", "S4", "S5"];
 
 function browserbaseUrl(u) {
   if (typeof u !== "string") return undefined;
   try {
     const url = new URL(u);
-    const ok = url.protocol === "https:" && (url.hostname === "browserbase.com" || url.hostname.endsWith(".browserbase.com"));
+    const ok = url.protocol === "https:" && !url.username && !url.password && (url.hostname === "browserbase.com" || url.hostname.endsWith(".browserbase.com"));
     return ok ? url.toString() : undefined;
   } catch {
     return undefined;
   }
 }
+
+function browserArtifactUrl(value) {
+  if (typeof value !== "string") return undefined;
+  const match = value.match(/^\/api\/runs\/(run-[0-9]{8}-[a-z0-9]{6})\/artifacts\/([A-Za-z0-9][A-Za-z0-9._-]{0,159})$/);
+  if (!match || match[2] === "." || match[2] === "..") return undefined;
+  return value;
+}
 const MAX_BODY = 6000;
+
+function safeEventText(value, limit) {
+  if (typeof value !== "string") return undefined;
+  const redacted = redactSensitive(value).replace(
+    /(^|[?&#\s])([A-Za-z0-9_.-]+)(\s*=\s*)(?:"[^"]*"|'[^']*'|[^\s&#,;]+)/g,
+    (match, before, name, separator) => {
+      const key = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const sensitive = /(?:token|auth|apikey|key|password|passwd|secret|credential|signature|sig)$/.test(key);
+      return sensitive ? `${before}${name}${separator}[redacted]` : match;
+    },
+  );
+  return redacted.slice(0, limit);
+}
+
+function safeBrowserCurrentUrl(value) {
+  if (typeof value !== "string") return undefined;
+  try {
+    const url = new URL(value);
+    if (!(url.protocol === "http:" || url.protocol === "https:") || url.username || url.password) return undefined;
+    // Query strings and fragments frequently contain signed or session data.
+    url.search = "";
+    url.hash = "";
+    return url.toString().slice(0, 2000);
+  } catch {
+    return undefined;
+  }
+}
 
 function isAgent(name) {
   return Object.prototype.hasOwnProperty.call(AGENTS, name);
@@ -107,6 +144,24 @@ export function validateWorkerEvent(raw) {
     return { ok: true, event };
   }
 
+  if (kind === "activity") {
+    if (!isAgent(raw.from)) return { ok: false, reason: "Activity must come from a canonical agent." };
+    const d = raw.data || {};
+    if (!ACTIVITY_STATUSES.includes(d.status)) return { ok: false, reason: `Unknown activity status "${d.status}".` };
+    if (!RUN_PHASES.includes(d.phase)) return { ok: false, reason: `Unknown activity phase "${d.phase}".` };
+    const step = Number(d.step);
+    if (!Number.isInteger(step) || step < 0 || step > 1_000_000) return { ok: false, reason: "Activity step must be a non-negative integer." };
+    event.data = {
+      status: d.status,
+      summary: safeEventText(d.summary, 500) || "",
+      observation: safeEventText(d.observation, 6000) || "",
+      step,
+      model: typeof d.model === "string" ? d.model.slice(0, 100) : "",
+      phase: d.phase,
+    };
+    return { ok: true, event };
+  }
+
   if (kind === "approval") {
     const d = raw.data || {};
     if (!d.id || !d.title) return { ok: false, reason: "Approval request needs data.id and data.title." };
@@ -132,10 +187,15 @@ export function validateWorkerEvent(raw) {
       env_detail: String(d.env_detail || "").slice(0, 300),
       experiment: d.experiment ? String(d.experiment).slice(0, 40) : undefined,
       run: Number.isFinite(Number(d.run)) ? Number(d.run) : undefined,
-      target: String(d.target || "").slice(0, 200),
-      outcome: d.outcome ? String(d.outcome).slice(0, 200) : undefined,
+      target: safeEventText(d.target || "", 200),
+      outcome: safeEventText(d.outcome, 200),
       live_url: browserbaseUrl(d.live_url),   // only browserbase.com URLs are ever embedded
       replay_url: browserbaseUrl(d.replay_url),
+      current_url: safeBrowserCurrentUrl(d.current_url),
+      title: safeEventText(d.title, 300),
+      screenshot_url: browserArtifactUrl(d.screenshot_url),
+      step: d.step !== undefined && d.step !== null && d.step !== "" && Number.isInteger(Number(d.step)) && Number(d.step) >= 0 && Number(d.step) <= 1_000_000 ? Number(d.step) : undefined,
+      action: safeEventText(d.action, 400),
     };
     return { ok: true, event };
   }
@@ -143,6 +203,11 @@ export function validateWorkerEvent(raw) {
   // system
   event.type = String(raw.type || "INFO").slice(0, 40);
   event.body = String(raw.body || "").slice(0, MAX_BODY);
+  if (raw.data && typeof raw.data === "object" && !Array.isArray(raw.data)) {
+    const outcome = ["running", "finished", "blocked", "cancelled", "reproduced", "not_reproduced", "inconclusive"].includes(raw.data.outcome) ? raw.data.outcome : undefined;
+    const summary = typeof raw.data.summary === "string" ? raw.data.summary.slice(0, 500) : undefined;
+    if (outcome || summary) event.data = { outcome, summary };
+  }
   return { ok: true, event };
 }
 

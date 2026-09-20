@@ -5,8 +5,8 @@ export const AGENTS = {
   "incident-lead":     { label: "Supervisor agent",     short: "SV", role: "Swarm supervisor", model: "Reasoning & coordination", color: "#8B684A" },
   "support-engineer":  { label: "Customer agent",        short: "CU", role: "Customer intake", model: "Gemini Flash", color: "#9B7657" },
   "sre-analyst":       { label: "Incidents agent",       short: "IN", role: "Incident signals", model: "Log analysis", color: "#547C80" },
-  "qa-engineer":       { label: "Execution agent",       short: "EX", role: "Browser experiments", model: "Browser harness", color: "#6C7F9A" },
-  "software-engineer": { label: "Implementation agent",  short: "IM", role: "Implementation", model: "Claude Code · planned", color: "#607B55" },
+  "qa-engineer":       { label: "Execution agent",       short: "EX", role: "Browser experiments", model: "Claude Code Opus", color: "#6C7F9A" },
+  "software-engineer": { label: "Implementation agent",  short: "IM", role: "Implementation", model: "Claude Code Opus", color: "#607B55" },
   "release-verifier":  { label: "Verification agent",    short: "VE", role: "Independent verification", model: "Protected tests", color: "#A47A42" },
 };
 

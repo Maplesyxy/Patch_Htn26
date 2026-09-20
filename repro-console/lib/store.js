@@ -95,7 +95,10 @@ export async function appendEvents(id, events) {
   const patch = { eventCount: last };
   for (const e of events) {
     if (e.kind === "stage" && e.data && e.data.stage) patch.stage = e.data.stage;
+    if (e.kind === "system" && e.type === "RUN_STARTED") patch.status = "running";
     if (e.kind === "system" && e.type === "RUN_FINISHED") patch.status = "finished";
+    if (e.kind === "system" && e.type === "RUN_BLOCKED") patch.status = "blocked";
+    if (e.kind === "system" && e.type === "RUN_CANCELLED") patch.status = "cancelled";
   }
   await patchRun(id, patch);
   return last;

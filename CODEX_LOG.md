@@ -19,3 +19,24 @@
 - Checked desktop and 390-pixel mobile layouts, navigation, filters, intake focus handling, and the investigation room. Fixed a hidden table label that caused horizontal overflow; checked the browser console for errors.
 - Confirmed the Gemini key is ignored by Git and absent from tracked source and browser bundles. Local preview uses loopback-only process settings; saved authentication configuration is unchanged.
 - Committed implementation milestones without co-author trailers. No remote push was performed.
+
+### Live runtime integration
+
+- Pushed integration checkpoints to `Maplesyxy/Patch_Htn26` on `main`, without co-author trailers. Added the live event contract, URL/report launch API, agent/browser panel, Browserbase and local Chromium adapters, and isolated booking fix adapter.
+- The console proxies an authenticated long-lived Node worker. Live activity and browser frames travel through the existing ingest/SSE pipeline. Phase tabs follow actual stage events and preserve historical observations.
+- Verified the Gemini customer endpoint through the intake UI and the installed authenticated Claude Code CLI with a real structured Opus response. The CLI reported `claude-opus-5` for the configured `opus` alias.
+- Verified local Chromium against the included booking app: navigation, visible control discovery, filling a reported date, immutable screenshot creation, and browser cleanup.
+- Ran the protected booking suite on the seeded app: repeated-key sequential and concurrent checks failed as expected; GET, validation, distinct keys, account isolation, and missing-key controls passed.
+- Browserbase session creation, live view, and release are implemented against the official API contract. Live cloud testing is pending teammate credentials. Source verification is scoped to the included app's isolated local-memory store; the suite does not validate Redis behavior.
+- Complete end-to-end model-loop validation remains pending at this checkpoint.
+
+### Live flow validation and teammate handoff
+
+- Confirmed a real Gemini intake and a live local investigation reaching Claude browser actions and Gemini supervision. A slow subsequent Claude decision stopped that round as blocked; it did not produce a product verdict. Added a three-minute action deadline and one bounded transient retry. A complete autonomous round still needs confirmation.
+- Verified cancellation closes the local browser and produces `RUN_CANCELLED`. Fixed loopback launch-origin validation and the live inspector's missing React state import; the production console build passed.
+- Ran a controlled Chromium trial against the included booking app: one clean click produced one reservation, one confirmation email, and one POST. Dropping the observed POST response after upstream completion made the client retry, producing two of each from one click. This trial used scripted browser actions to validate the adapter and evidence handoff.
+- The protected baseline again failed only sequential and concurrent repeated-key checks. The first real implementation handoff exposed a child-process environment issue: Claude was logged in in the parent shell, but its restricted environment omitted the user identity needed to find macOS credentials. Preserving `USER` and `LOGNAME` restored login discovery. The Claude child still excludes Gemini, Browserbase, and runtime secrets, with an added isolation regression test.
+- Browserbase credentials and cloud-session validation remain with the teammate; `BROWSERBASE_HANDOFF.md` describes the public target URL, provider contract, and source-origin configuration. The final real implementation check is recorded separately below.
+- The authenticated Claude implementation produced a real two-file patch on the isolated `codex/patch-run-20260920-check2` branch. All seven protected HTTP checks passed. Its first build exposed a runner bug: the production build inherited development mode. The build subprocess now explicitly uses `NODE_ENV=production` with a restricted environment. Rechecking the same generated source passed all seven checks and its production build. The original rejected run artifact is preserved.
+- All 33 automated tests pass, including credential isolation and build-environment regressions. Generated source remains isolated for review; it is not merged into the included app. Validation does not cover Redis or a complete autonomous browser-model round.
+- Replayed the exact real Claude proposal through the corrected adapter on `codex/patch-run-20260920-check3`, without another browser or model call. The adapter returned `verified`: base failed the two expected checks, the patch passed all seven, the production build passed, and all seven emitted events passed validation, including patch/verdict records and the review approval request. The replay is explicitly labeled in ignored local artifacts.

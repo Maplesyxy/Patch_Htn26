@@ -110,13 +110,13 @@ function Workflow() {
         </div>
         <div>
           <h2>Implementation</h2>
-          <p>A fix is checked against the failure.</p>
+          <p>A proposed fix is checked against the reproduced failure.</p>
         </div>
         <div className="patch-step-foot">
           <span className="patch-plan-dot" />
-          <span>Claude Code · planned</span>
+          <span>Claude Code Opus · included app</span>
         </div>
-        <span className="patch-handoff patch-handoff-implementation"><span className="patch-handoff-line" />Reproduction packet</span>
+        <span className="patch-handoff patch-handoff-implementation"><span className="patch-handoff-line" />Patch &amp; verification</span>
       </div>
 
       <div className="patch-workflow-caption">
@@ -333,11 +333,11 @@ function AgentsView() {
           <span className="patch-architecture-connector"><i /></span>
           <div className="patch-architecture-exit">
             <span className="patch-architecture-icon patch-implementation-icon"><PatchIcon name="code" size={18} /></span>
-            <span><small>FIX · PLANNED</small><strong>Implementation</strong><em>Claude Code · planned</em></span>
+            <span><small>FIX · INCLUDED APP ONLY</small><strong>Implementation</strong><em>Claude Code Opus · optional</em></span>
           </div>
         </div>
         <div className="patch-architecture-bottom">
-          <span className="patch-architecture-rule"><PatchIcon name="shield" size={16} /><strong>Independent verifier</strong><span>Release verifier writes acceptance tests blind to the patch and signs off only when evidence passes.</span></span>
+          <span className="patch-architecture-rule"><PatchIcon name="shield" size={16} /><strong>Independent verifier</strong><span>For the included app, protected checks run against the isolated local-memory patch before a verdict is recorded.</span></span>
           <span className="patch-architecture-ledger"><PatchIcon name="layers" size={15} /> One append-only evidence trail</span>
         </div>
       </section>
@@ -353,24 +353,30 @@ function AgentsView() {
 function SettingsView({ me }) {
   const origin = typeof window !== "undefined" ? window.location.origin : "https://your-app.vercel.app";
   const snippet = [
+    "cd repro-console",
     "export REPRO_CONSOLE_URL=" + origin,
-    "export REPRO_INGEST_TOKEN=<token from REPRO_INGEST_TOKENS>",
-    "python worker/example_run.py",
+    "export PATCH_RUNTIME_TOKEN=<shared console and worker secret>",
+    "export REPRO_INGEST_TOKEN=<token matching REPRO_INGEST_TOKENS>",
+    "# Included booking app source fixes only",
+    "export PATCH_FIX_BOOKING_APP=1",
+    "export PATCH_FIX_REPO_PATH=<absolute Patch repository root>",
+    "npm run dev:live",
   ].join("\n");
   return (
     <>
       <ViewHeading eyebrow="Workspace settings" title="Connect your runtime.">
-        The agent runtime runs beside your sandbox and sends investigation events to this workspace.
+        The live worker uses Claude Code and Gemini beside the console. Its optional source-fix adapter is limited to the included booking app.
       </ViewHeading>
       <div className="patch-settings-grid">
         <section className="patch-settings-card patch-runtime-card">
           <div className="patch-settings-card-heading">
             <span className="patch-settings-icon"><PatchIcon name="terminal" size={18} /></span>
-            <span><h2>Runtime connection</h2><p>Run this from the machine hosting your agent team.</p></span>
-            <span className="patch-config-state"><i /> Ready to configure</span>
+            <span><h2>Runtime connection</h2><p>Run from repro-console/ on the worker machine.</p></span>
+            <span className="patch-config-state"><i /> Optional setup</span>
           </div>
           <pre className="patch-code-block"><code>{snippet}</code><span className="patch-code-language">SHELL</span></pre>
           <p className="patch-settings-footnote"><PatchIcon name="lock" size={14} />Keep the ingest token in the runtime environment. It is never shown to the browser.</p>
+          <p className="patch-settings-note">A website URL alone does not enable source edits for arbitrary repositories.</p>
         </section>
         <section className="patch-settings-card">
           <div className="patch-settings-card-heading">

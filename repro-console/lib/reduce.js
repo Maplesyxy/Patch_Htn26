@@ -6,7 +6,7 @@ const stageIndex = (id) => STAGES.findIndex((s) => s.id === id);
 export function reduceEvents(events) {
   const ledger = { claim: {}, incident: {}, hypothesis: {}, experiment: {}, patch: {}, verdict: {} };
   const agents = {};
-  for (const name of Object.keys(AGENTS)) agents[name] = { messages: 0, lastSeq: 0, lastTool: null, busy: false };
+  for (const name of Object.keys(AGENTS)) agents[name] = { messages: 0, lastSeq: 0, lastTool: null, busy: false, activity: null, activityHistory: [] };
   const approvals = {};
   const browsers = {};
   let stage = "S0";
@@ -14,6 +14,7 @@ export function reduceEvents(events) {
   let pushbacks = 0;
   let rejected = 0;
   let finished = false;
+  let status = "running";
   const directions = {};
 
   for (const e of events) {
@@ -37,6 +38,13 @@ export function reduceEvents(events) {
         a.lastTool = e.data;
         a.busy = e.data.status === "start";
       }
+    } else if (e.kind === "activity") {
+      if (a) {
+        a.activity = { ...e.data, seq: e.seq };
+        a.activityHistory.push(a.activity);
+        if (a.activityHistory.length > 20) a.activityHistory.shift();
+        a.busy = ["thinking", "acting", "observing"].includes(e.data.status);
+      }
     } else if (e.kind === "browser") {
       const prev = browsers[e.data.session_id] || { firstSeq: e.seq, from: e.from };
       const next = { ...prev };
@@ -51,9 +59,13 @@ export function reduceEvents(events) {
       if (ap) ap.decision = { ...e.data, seq: e.seq };
     } else if (e.kind === "system") {
       if (e.type === "REJECTED") rejected += 1;
-      if (e.type === "RUN_FINISHED") finished = true;
+      if (e.type === "RUN_STARTED") status = "running";
+      if (e.type === "RUN_FINISHED") status = "finished";
+      if (e.type === "RUN_BLOCKED") status = "blocked";
+      if (e.type === "RUN_CANCELLED") status = "cancelled";
     }
   }
+  finished = status === "finished";
 
   return {
     ledger,
@@ -62,6 +74,9 @@ export function reduceEvents(events) {
     browsers: Object.values(browsers).sort((x, y) => y.firstSeq - x.firstSeq),
     stage,
     finished,
+    blocked: status === "blocked",
+    cancelled: status === "cancelled",
+    status,
     directions,
     counts: { sentBack, pushbacks, rejected, events: events.length },
   };

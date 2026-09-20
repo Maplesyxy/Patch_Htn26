@@ -9,11 +9,18 @@ export function customerModel(value = process.env.PATCH_CUSTOMER_MODEL) {
   return value && MODEL_PATTERN.test(value) ? value : DEFAULT_CUSTOMER_MODEL;
 }
 
+function isIsoCalendarDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
 export function redactSensitive(value) {
   return String(value)
     .replace(/\b(?:my name is|customer name is|user name is|name:)\s+[\p{L}][\p{L}.'-]*(?:\s+[\p{L}][\p{L}.'-]*){0,2}/giu, "[personal name]")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]")
-    .replace(/\b(?:\+?\d[\d ().-]{7,}\d)\b/g, (phone, offset, source) => {
+    .replace(/(?<!\w)\+?\d[\d ().-]{7,}\d\b/g, (phone, offset, source) => {
+      if (isIsoCalendarDate(phone)) return phone;
       const before = source.slice(Math.max(0, offset - 32), offset);
       return /(?:ticket|account|order|booking|reservation|trace)\s*(?:id|#|number|no\.?)?\s*[:#-]?\s*$/i.test(before) ? phone : "[phone]";
     })
