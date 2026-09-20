@@ -184,7 +184,42 @@ function safeArtifactUrl(value, runId) {
   }
 }
 
-function PhaseTimeline({ phase, currentPhase, followLive, events, onSelectPhase, onFollowLive, direction }) {
+function CaptureFrame({ screenshotUrl, step, captureTimeLabel, provenance }) {
+  const [imageState, setImageState] = useState("loading");
+  return (
+    <figure className={`live-capture-figure${imageState === "loaded" ? " is-loaded" : ""}`}>
+      {imageState === "loading" ? (
+        <div className="live-capture-loading" role="status">
+          <span className="live-pending-dots" aria-hidden="true"><i /><i /><i /></span>
+          <strong>Loading browser capture</strong>
+          <small>The screenshot will appear as soon as it finishes loading.</small>
+        </div>
+      ) : null}
+      {imageState === "error" ? (
+        <div className="live-capture-error" role="status">
+          <PatchIcon name="alert" size={20} />
+          <strong>Capture unavailable</strong>
+          <span>The runtime reported this artifact, but it could not be loaded.</span>
+        </div>
+      ) : (
+        <img
+          src={screenshotUrl}
+          alt={`Captured browser screen${step === null ? "" : `, step ${step}`}`}
+          onLoad={() => setImageState("loaded")}
+          onError={() => setImageState("error")}
+        />
+      )}
+      {imageState === "loaded" ? (
+        <figcaption>
+          <span>{provenance}</span>
+          <span>{captureTimeLabel || (step === null ? "" : `Step ${step}`)}</span>
+        </figcaption>
+      ) : null}
+    </figure>
+  );
+}
+
+function PhaseTimeline({ phase, currentPhase, followLive, events, onSelectPhase, onFollowLive, direction, visitedPhases }) {
   const selectedIndex = PHASES.findIndex((item) => item.id === phase);
   const currentIndex = PHASES.findIndex((item) => item.id === currentPhase);
   const selected = PHASES[selectedIndex] || PHASES[0];
@@ -200,7 +235,10 @@ function PhaseTimeline({ phase, currentPhase, followLive, events, onSelectPhase,
         {PHASES.map((item, index) => {
           const current = item.id === currentPhase;
           const selectedTab = item.id === phase;
-          const future = index > currentIndex;
+          const visited = visitedPhases instanceof Set
+            ? visitedPhases.has(item.id)
+            : index <= currentIndex;
+          const future = index > currentIndex && !visited;
           const completed = index < currentIndex;
           return (
             <button
@@ -234,9 +272,9 @@ function PhaseTimeline({ phase, currentPhase, followLive, events, onSelectPhase,
   );
 }
 
-function BrowserPane({ run, phase, currentPhase, phaseEvents, events, browsers, terminal }) {
+function BrowserPane({ run, phase, currentPhase, phaseEvents, terminal }) {
   const isCurrentPhase = phase === currentPhase;
-  const selectedBrowsers = isCurrentPhase ? browsersFromEvents(events) : browsersFromEvents(phaseEvents);
+  const selectedBrowsers = browsersFromEvents(phaseEvents);
   const browser = selectedBrowsers[0] || null;
   const liveUrl = isCurrentPhase && !terminal && browser && browser.status === "open"
     ? safeBrowserbaseUrl(browser.live_url)
@@ -249,12 +287,23 @@ function BrowserPane({ run, phase, currentPhase, phaseEvents, events, browsers, 
   const step = browser && browser.step !== undefined && browser.step !== null && Number.isFinite(Number(browser.step))
     ? Number(browser.step)
     : null;
+  const captureProvenance = !isCurrentPhase
+    ? "Historical phase capture"
+    : terminal
+      ? "Final saved capture"
+      : "Saved browser capture";
 
   let emptyTitle = "Waiting for the runtime to start a browser.";
   let emptyCopy = "The current run has not reported a browser capture yet.";
   if (browser && browser.status === "failed") {
     emptyTitle = "Browser session failed.";
     emptyCopy = browser.outcome || "See the activity feed for the runtime error.";
+  } else if (!isCurrentPhase && !screenshotUrl) {
+    emptyTitle = browser ? "No saved capture in this phase." : "No browser capture in this phase.";
+    emptyCopy = "This phase has no saved browser image. Captures from other phases stay separate.";
+  } else if (terminal && !screenshotUrl) {
+    emptyTitle = "The run ended without a capture for this phase.";
+    emptyCopy = "The runtime did not report a browser image for the selected phase.";
   } else if (browser && browser.status === "open") {
     emptyTitle = "Browser session is open.";
     emptyCopy = "Waiting for its first screenshot. No browser controls are available here.";
@@ -290,6 +339,11 @@ function BrowserPane({ run, phase, currentPhase, phaseEvents, events, browsers, 
         <span className="live-address-value" title={targetUrl || "Waiting for target URL"}>{targetUrl || "Waiting for target URL"}</span>
         {browser && browser.title ? <span className="live-browser-page-title">{browser.title}</span> : null}
       </div>
+      <div className={`live-capture-mode ${liveUrl ? "is-live" : screenshotUrl ? "is-captured" : "is-pending"}`}>
+        <i aria-hidden="true" />
+        <strong>{liveUrl ? "Live browser session" : screenshotUrl ? captureProvenance : "Browser capture pending"}</strong>
+        <span>{liveUrl ? "View only · no browser controls" : screenshotUrl ? "Runtime artifact · read only" : isCurrentPhase ? "Waiting for the runtime to report a screenshot" : "No capture was reported in this phase"}</span>
+      </div>
       <div className={"live-browser-stage" + (!liveUrl && !screenshotUrl ? " is-empty" : "")}>
         {liveUrl ? (
           <>
@@ -303,21 +357,19 @@ function BrowserPane({ run, phase, currentPhase, phaseEvents, events, browsers, 
             <span className="live-view-only"><PatchIcon name="verified" size={13} />View only</span>
           </>
         ) : screenshotUrl ? (
-          <figure className="live-capture-figure">
-            <img src={screenshotUrl} alt={"Latest browser capture" + (step === null ? "" : ", step " + step)} />
-            <figcaption>Latest capture{captureTimeLabel ? " · " + captureTimeLabel : ""}{step === null ? "" : " · Step " + step}</figcaption>
-          </figure>
+          <CaptureFrame key={screenshotUrl} screenshotUrl={screenshotUrl} step={step} captureTimeLabel={captureTimeLabel} provenance={captureProvenance} />
         ) : (
           <div className="live-browser-empty">
             <span className="live-empty-mark"><PatchIcon name={browser && browser.status === "failed" ? "alert" : "browser"} size={20} /></span>
             <strong>{emptyTitle}</strong>
             <p>{emptyCopy}</p>
+            {!terminal && isCurrentPhase && !(browser && browser.status === "failed") ? <span className="live-pending-dots" role="status" aria-label="Waiting for browser activity"><i /><i /><i /></span> : null}
             {browser && browser.action ? <span className="live-browser-action">{browser.action}</span> : null}
           </div>
         )}
       </div>
       <footer className="live-browser-footer">
-        <span>{browser && browser.action ? browser.action : isCurrentPhase ? "Latest capture from the active phase" : "Phase snapshot"}</span>
+        <span>{browser && browser.action ? browser.action : screenshotUrl || liveUrl ? isCurrentPhase ? "Latest capture from the active phase" : "Capture from the selected phase" : isCurrentPhase ? "Waiting for a capture in this phase" : "No capture reported in this phase"}</span>
         <span>{screenshotUrl ? "Latest capture" : liveUrl ? "Session view" : "No capture yet"}{captureTimeLabel && screenshotUrl ? " · " + captureTimeLabel : ""}</span>
       </footer>
     </section>
@@ -345,11 +397,12 @@ function AgentActivity({ agentId, activity }) {
           <p>{activity.observation}</p>
         </details>
       ) : null}
-      <footer className="live-agent-footer">
-        <span>{activity.model || agent.model}</span>
-        {activity.step === undefined || activity.step === null ? null : <span>Step {activity.step}</span>}
-        {captureTime(activity.ts) ? <time>{captureTime(activity.ts)}</time> : null}
-      </footer>
+      {(activity.model || activity.step !== undefined && activity.step !== null || captureTime(activity.ts)) ? (
+        <details className="live-agent-details">
+          <summary>Run details</summary>
+          <div><span><b>Model</b>{activity.model || agent.model}</span>{activity.step === undefined || activity.step === null ? null : <span><b>Step</b>{activity.step}</span>}{captureTime(activity.ts) ? <span><b>Updated</b><time>{captureTime(activity.ts)}</time></span> : null}</div>
+        </details>
+      ) : null}
     </article>
   );
 }
@@ -435,12 +488,12 @@ export default function LiveInvestigation({
   events = [],
   phaseEvents = [],
   agents = {},
-  browsers = [],
   connection = "connecting",
   phase = "S0",
   currentPhase = "S0",
   followLive = true,
   direction = "forward",
+  visitedPhases,
   canStop = false,
   stopBusy = false,
   stopError = "",
@@ -456,8 +509,6 @@ export default function LiveInvestigation({
     ? (terminalEvent.data && (terminalEvent.data.outcome || terminalEvent.data.result)) || terminalEvent.body || ""
     : "";
   const phaseSnapshot = phase !== currentPhase;
-  const phaseBrowserEvents = phaseSnapshot ? phaseEvents : events;
-  const phaseBrowsers = phaseSnapshot ? [] : browsers;
   const stopDisabled = !canStop || stopBusy || terminal || !!run.simulated;
   const connectionLabel = terminal
     ? blocked ? "Blocked" : cancelled ? "Stopped" : "Run complete"
@@ -490,15 +541,14 @@ export default function LiveInvestigation({
         onSelectPhase={onSelectPhase}
         onFollowLive={onFollowLive}
         direction={direction}
+        visitedPhases={visitedPhases}
       />
       <div key={phase + ":" + direction} className={"live-cockpit-grid slide-" + direction}>
         <BrowserPane
           run={run}
           phase={phase}
           currentPhase={currentPhase}
-          phaseEvents={phaseBrowserEvents}
-          events={events}
-          browsers={phaseBrowsers}
+          phaseEvents={phaseEvents}
           terminal={terminal}
         />
         <AgentInspector phaseEvents={phaseEvents} agents={agents} phase={phase} currentPhase={currentPhase} />

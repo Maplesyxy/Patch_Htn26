@@ -92,17 +92,17 @@
 }
 .patch-ensemble-hint {
   display: flex; align-items: center; gap: 8px; margin: 0;
-  font-size: 13.5px; color: #5c655a;
+  font-size: 16px; line-height: 1.5; color: var(--patch-muted);
 }
 .patch-ensemble-actions { display: flex; align-items: center; gap: 12px; }
-.patch-save-state { font-size: 12.5px; color: var(--patch-olive); font-weight: 600; }
-.patch-save-state.bad { color: #9f2f3f; }
+.patch-save-state { font-size: 13px; color: var(--patch-accent); font-weight: 650; }
+.patch-save-state.bad { color: var(--patch-rust); }
 
 .patch-role-cards {
   display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
 }
 .patch-role-card {
-  background: #fff; border: 1px solid var(--patch-warm-line); border-radius: 14px;
+  min-width: 0; background: #fff; border: 1px solid var(--patch-line); border-radius: 14px;
   padding: 18px; display: flex; flex-direction: column; gap: 10px;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
@@ -112,29 +112,29 @@
 .patch-role-card > header { display: grid; grid-template-columns: 32px 1fr auto; gap: 11px; align-items: start; }
 .patch-role-card-icon {
   width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
-  background: var(--patch-sage); color: var(--patch-olive);
+  background: var(--patch-soft); color: var(--patch-accent);
 }
-.patch-role-card header strong { font-size: 15px; color: var(--patch-charcoal); }
-.patch-role-card header p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.45; color: #6b7468; }
+.patch-role-card header strong { font-size: 16px; color: var(--patch-ink); }
+.patch-role-card header p { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--patch-muted); }
 .patch-family-mark {
   width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
   background: var(--fam); color: #fff; font-size: 12px; font-weight: 700;
 }
 .patch-role-card select {
-  width: 100%; padding: 9px 11px; border: 1px solid var(--patch-warm-line);
-  border-radius: 9px; font: inherit; font-size: 14px; background: #fdfdfb; color: var(--patch-charcoal);
+  width: 100%; min-width: 0; padding: 10px 11px; border: 1px solid var(--patch-line);
+  border-radius: 9px; font: inherit; font-size: 15px; background: var(--patch-paper); color: var(--patch-ink);
 }
 .patch-role-card select:focus {
-  outline: none; border-color: var(--patch-olive); box-shadow: 0 0 0 3px rgba(59, 81, 52, .10);
+  outline: none; border-color: var(--patch-accent); box-shadow: 0 0 0 3px rgba(36, 111, 120, .12);
 }
-.patch-role-note { margin: 0; font-size: 12.5px; color: #6b7468; line-height: 1.45; }
-.patch-role-wants { margin: 0; font-size: 12px; color: #7c857a; line-height: 1.45; }
+.patch-role-note { margin: 0; font-size: 13.5px; color: var(--patch-muted); line-height: 1.5; }
+.patch-role-wants { margin: 0; font-size: 13px; color: var(--patch-muted); line-height: 1.5; }
 .patch-role-wants span {
-  font-weight: 600; color: var(--patch-olive); text-transform: uppercase;
-  letter-spacing: .07em; font-size: 10.5px; margin-right: 5px;
+  font-weight: 700; color: var(--patch-accent); text-transform: uppercase;
+  letter-spacing: .06em; font-size: 12px; margin-right: 5px;
 }
 .patch-role-env {
-  margin-top: auto; font-size: 11.5px; background: var(--patch-sage); color: var(--patch-olive);
+  margin-top: auto; font-size: 13px; line-height: 1.5; background: var(--patch-soft); color: var(--patch-accent);
   padding: 5px 8px; border-radius: 6px; overflow-wrap: anywhere;
 }
 
@@ -142,15 +142,22 @@
 .patch-conflict {
   display: grid; grid-template-columns: 18px 1fr; gap: 11px; align-items: start; margin: 0;
   background: #fdf3f4; border: 1px solid #f0cdd3; border-left: 3px solid #b4404f;
-  border-radius: 10px; padding: 13px 15px; color: #7d2b36; font-size: 13px; line-height: 1.55;
+  border-radius: 10px; padding: 13px 15px; color: #7d2b36; font-size: 14px; line-height: 1.55;
 }
-.patch-conflict strong { display: block; margin-bottom: 3px; color: #8f2d3a; font-size: 13.5px; }
+.patch-conflict strong { display: block; margin-bottom: 3px; color: #8f2d3a; font-size: 15px; }
 .patch-conflict svg { margin-top: 2px; }
 .patch-no-conflict {
   display: flex; align-items: center; gap: 8px; margin: 0;
-  font-size: 13px; color: var(--patch-olive);
+  font-size: 14px; color: var(--patch-accent);
 }
-.patch-separation { font-size: 13px; color: #5c655a; }
-.patch-separation summary { cursor: pointer; font-weight: 600; color: var(--patch-olive); }
+.patch-separation { font-size: 14px; color: var(--patch-muted); }
+.patch-separation summary { cursor: pointer; font-weight: 700; color: var(--patch-accent); }
 .patch-separation ul { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 7px; line-height: 1.55; }
-.patch-separation strong { color: var(--patch-charcoal); text-transform: capitalize; }
+.patch-separation strong { color: var(--patch-ink); text-transform: capitalize; }
+
+@media (max-width: 520px) {
+  .patch-ensemble-config-bar { align-items: flex-start; }
+  .patch-ensemble-actions { flex-wrap: wrap; }
+  .patch-role-cards { grid-template-columns: minmax(0,1fr); }
+  .patch-role-card { padding: 16px; }
+}

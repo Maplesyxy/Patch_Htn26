@@ -5,6 +5,7 @@ import { AGENTS, AGENT_GROUPS, HUMAN, STAGES, PUSHBACK_TYPES, recordTypeForRef }
 import { reduceEvents } from "@/lib/reduce";
 import PatchShell from "./PatchShell";
 import LiveInvestigation from "./LiveInvestigation";
+import ReplayStage from "./ReplayStage";
 import "./room.css";
 
 const RECORD_TABS = [
@@ -21,7 +22,6 @@ const GOOD = ["observed", "supported", "supports", "verified", "fix_verified", "
 const BAD = ["contradicted", "refuted", "refutes", "rejected", "fail"];
 const WARN = ["unresolved", "inconclusive", "insufficient_evidence", "infra_failure", "confirmed_defect", "website_defect", "website_defect_network_trigger", "browser_specific", "environment_specific", "not_reproduced"];
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const who = (name) => AGENTS[name] || (name === "human" ? HUMAN : { label: name, short: "··", color: "#5B6B82", role: "" });
 const sentence = (s) => { const t = String(s || "").replace(/_/g, " ").toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 const clock = (ts) => { try { return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); } catch { return ""; } };
@@ -46,6 +46,70 @@ function RefChip({ id, onOpen }) {
 function Refs({ ids, onOpen }) {
   if (!ids || !ids.length) return null;
   return <span className="refs">{ids.map((r) => <RefChip key={r} id={r} onOpen={onOpen} />)}</span>;
+}
+
+const PHASE_LABELS = ["Intake", "Correlate", "Reproduce", "Fix", "Verify", "Release prep"];
+
+function phaseForEventRows(rows, matcher) {
+  const match = [...rows].reverse().find((row) => matcher(row.event));
+  return match ? match.phase : null;
+}
+
+function PhaseTimeline({ phases, selectedPhase, currentStage, followLive, phaseEventCount, reason, direction, onSelect, onFollow }) {
+  const currentIndex = STAGES.findIndex((stage) => stage.id === currentStage);
+  const selectedIndex = STAGES.findIndex((stage) => stage.id === selectedPhase);
+  const phase = STAGES[selectedIndex] || STAGES[0];
+  const handleKeyDown = (event) => {
+    const buttons = [...event.currentTarget.querySelectorAll("button:not(:disabled)")];
+    const current = buttons.indexOf(document.activeElement);
+    let next = current;
+    if (event.key === "ArrowRight") next = Math.min(buttons.length - 1, Math.max(current, 0) + 1);
+    else if (event.key === "ArrowLeft") next = Math.max(0, (current < 0 ? 0 : current) - 1);
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = buttons.length - 1;
+    else return;
+    event.preventDefault();
+    buttons[next]?.focus();
+    buttons[next]?.click();
+  };
+
+  return (
+    <section className="phase-navigator" aria-label="Investigation progress">
+      <div className="phase-tabs" role="tablist" aria-label="Investigation phases" onKeyDown={handleKeyDown}>
+        {STAGES.map((stage, index) => {
+          const visited = phases.has(stage.id) || index === currentIndex;
+          const isCurrent = stage.id === currentStage;
+          const selected = stage.id === selectedPhase;
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-current={isCurrent ? "step" : undefined}
+              aria-disabled={!visited ? "true" : undefined}
+              disabled={!visited}
+              className={`phase-tab${selected ? " selected" : ""}${isCurrent ? " current" : ""}${visited ? " visited" : " future"}`}
+              onClick={() => onSelect(stage.id)}
+            >
+              <span className="phase-tab-id">{visited && !isCurrent ? "✓" : stage.id}</span>
+              <span className="phase-tab-label">{PHASE_LABELS[index] || stage.name}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="phase-summary">
+        <div className={`phase-summary-copy slide-${direction}`} key={selectedPhase}>
+          <span className="eyebrow">{selectedPhase === currentStage ? (followLive ? "Current phase" : "Current phase · paused") : "Phase snapshot"}</span>
+          <strong><span>{phase.id}</span>{PHASE_LABELS[selectedIndex] || phase.name}</strong>
+          <small>{reason || "Investigation activity"} · {phaseEventCount} {phaseEventCount === 1 ? "event" : "events"}</small>
+        </div>
+        {!followLive || selectedPhase !== currentStage ? (
+          <button className="follow-button" type="button" onClick={onFollow}>Follow current <span aria-hidden="true">↗</span></button>
+        ) : <span className="phase-current-mark"><i /> Following current</span>}
+      </div>
+    </section>
+  );
 }
 
 /* ------------------------------ feed items ------------------------------ */
@@ -73,6 +137,29 @@ function MessageItem({ e, onOpen }) {
           </footer>
         ) : null}
         {e.requires_response ? <span className="needs">Needs a response</span> : null}
+      </div>
+    </article>
+  );
+}
+
+function ActivityItem({ e }) {
+  const agent = who(e.from);
+  const data = e.data || {};
+  const status = data.status || "idle";
+  return (
+    <article className={`activity-card is-${status}`} style={{ "--agent": agent.color }}>
+      <Avatar name={e.from} />
+      <div className="activity-main">
+        <header>
+          <strong>{agent.label}</strong>
+          <span className={`activity-status is-${status}`}>{sentence(status)}</span>
+          <time>{clock(e.ts)}</time>
+        </header>
+        <p>{data.summary || `${agent.label} updated their status to ${sentence(status).toLowerCase()}.`}</p>
+        {data.observation ? <details>
+          <summary>Observation data</summary>
+          <p>{data.observation}</p>
+        </details> : null}
       </div>
     </article>
   );
@@ -115,8 +202,9 @@ function ApprovalItem({ e, approval, canDecide, onDecide }) {
   );
 }
 
-function FeedItem({ e, state, onOpen, canDecide, onDecide }) {
+function FeedItem({ e, state, onOpen, canDecide, onDecide, simulated }) {
   if (e.kind === "message") return <MessageItem e={e} onOpen={onOpen} />;
+  if (e.kind === "activity") return <ActivityItem e={e} />;
   if (e.kind === "approval") {
     return <ApprovalItem e={e} approval={state.approvals.find((a) => a.id === e.data.id)} canDecide={canDecide} onDecide={onDecide} />;
   }
@@ -160,7 +248,7 @@ function FeedItem({ e, state, onOpen, canDecide, onDecide }) {
     return (
       <div className={`line ${d.status === "failed" ? "tool error" : ""}`} style={{ "--agent": who(e.from).color }}>
         <span className="dot" />
-        <span>{who(e.from).label} {verb} a {d.provider === "local" ? "local" : "cloud"} browser</span>
+        <span>{who(e.from).label} {verb} {simulated ? "a sample browser fixture" : `a ${d.provider === "local" ? "local" : "cloud"} browser`}</span>
         <button className="chip" onClick={() => onOpen(`BROWSER:${d.session_id}`)}>{d.env || "session"}{d.run ? `, run ${d.run}` : ""}</button>
         {d.experiment ? <RefChip id={d.experiment} onOpen={onOpen} /> : null}
         <span className="line-text">{d.outcome || d.target}</span>
@@ -282,11 +370,23 @@ export default function RunRoom({ runId, preview }) {
   const [phaseDirection, setPhaseDirection] = useState("forward");
   const [stopBusy, setStopBusy] = useState(false);
   const [stopError, setStopError] = useState("");
+  const [replayPaused, setReplayPaused] = useState(false);
+  const [replaySpeed, setReplaySpeed] = useState(1);
+  const [replayError, setReplayError] = useState("");
+  const [replayDone, setReplayDone] = useState(false);
+  const [replayRetry, setReplayRetry] = useState(0);
 
   const lastSeq = useRef(0);
   const feedRef = useRef(null);
   const stick = useRef(true);
   const previousStage = useRef(null);
+  const selectedPhaseRef = useRef(selectedPhase);
+  const currentStageRef = useRef("S0");
+  const replayPausedRef = useRef(replayPaused);
+  const replaySpeedRef = useRef(replaySpeed);
+  selectedPhaseRef.current = selectedPhase;
+  replayPausedRef.current = replayPaused;
+  replaySpeedRef.current = replaySpeed;
 
   // who am I + initial load + live stream
   useEffect(() => {
@@ -305,6 +405,8 @@ export default function RunRoom({ runId, preview }) {
         if (cancelled) return;
         setRun(data.run);
         setEvents(data.events);
+        const lastStage = [...data.events].reverse().find((event) => event.kind === "stage" && event.data && event.data.stage);
+        currentStageRef.current = lastStage ? lastStage.data.stage : (data.run.stage || "S0");
         lastSeq.current = data.cursor;
         es = new EventSource(`/api/runs/${runId}/stream?after=${data.cursor}`);
         es.onopen = () => { clearTimeout(timer); setConn("live"); };
@@ -314,8 +416,11 @@ export default function RunRoom({ runId, preview }) {
           try { e = JSON.parse(msg.data); } catch { return; }
           if (!e || e.seq <= lastSeq.current) return;
           lastSeq.current = e.seq;
+          if (e.kind === "stage" && e.data && e.data.stage) currentStageRef.current = e.data.stage;
           setEvents((prev) => [...prev, e]);
-          if (!stick.current) setUnseen((n) => n + 1);
+          let eventPhase = currentStageRef.current;
+          if (e.kind === "activity" && e.data && e.data.phase) eventPhase = e.data.phase;
+          if (!stick.current && eventPhase === selectedPhaseRef.current) setUnseen((n) => n + 1);
         };
       } catch {
         setError("Could not reach the server. Reload to try again.");
@@ -324,22 +429,91 @@ export default function RunRoom({ runId, preview }) {
     return () => { cancelled = true; clearTimeout(timer); if (es) es.close(); };
   }, [runId]);
 
-  // drive the simulated replay from this tab
+  // The sample replay is paced locally; the fixture/API event order is unchanged.
   useEffect(() => {
     if (!run || !run.simulated || !me || me.role !== "approver") return;
-    let stop = false;
+    const controller = new AbortController();
+    const { signal } = controller;
+    let stopped = false;
+
+    function wait(ms) {
+      if (signal.aborted) return Promise.resolve(false);
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => finish(true), ms);
+        const onAbort = () => finish(false);
+        function finish(value) {
+          clearTimeout(timer);
+          signal.removeEventListener("abort", onAbort);
+          resolve(value);
+        }
+        signal.addEventListener("abort", onAbort, { once: true });
+      });
+    }
+
+    async function waitPausable(ms) {
+      let remaining = Math.max(0, ms);
+      let last = Date.now();
+      while (remaining > 0 && !signal.aborted) {
+        if (replayPausedRef.current) {
+          await wait(120);
+          last = Date.now();
+          continue;
+        }
+        const speed = Math.max(1, replaySpeedRef.current);
+        await wait(Math.min(120, remaining / speed));
+        const now = Date.now();
+        if (!replayPausedRef.current) remaining -= (now - last) * Math.max(1, replaySpeedRef.current);
+        last = now;
+      }
+      return !signal.aborted;
+    }
+
     (async () => {
       let index = run.demoIndex || 0;
-      while (!stop) {
-        const res = await fetch(`/api/runs/${runId}/demo`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ index }) });
-        const d = await res.json().catch(() => ({}));
-        if (!res.ok || d.done) break;
-        if (typeof d.index === "number") index = d.index;
-        await sleep(d.nextDelay || 700);
+      while (!stopped && !signal.aborted) {
+        if (replayPausedRef.current) {
+          await wait(120);
+          continue;
+        }
+        const stageBefore = currentStageRef.current;
+        let response;
+        let data;
+        try {
+          response = await fetch(`/api/runs/${runId}/demo`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ index }),
+            signal,
+          });
+          const text = await response.text();
+          try { data = text ? JSON.parse(text) : {}; }
+          catch { throw new Error("The replay service returned an unreadable response."); }
+          if (!response.ok) throw new Error(data.error || "The sample replay could not continue.");
+        } catch (cause) {
+          if (signal.aborted) break;
+          setReplayError(cause.message || "Could not reach the replay service.");
+          return;
+        }
+        if (typeof data.index === "number") index = data.index;
+        if (data.skipped) {
+          if (data.done) { setReplayDone(true); return; }
+          continue;
+        }
+        if (data.done) { setReplayDone(true); return; }
+        setReplayError("");
+
+        await wait(100);
+        const phaseChanged = currentStageRef.current !== stageBefore;
+        const jitter = 0.9 + Math.random() * 0.2;
+        const baseDelay = Math.max(250, Number(data.nextDelay) || 700);
+        const semanticPause = phaseChanged ? 2_000 + Math.random() * 1_000 : 0;
+        if (!await waitPausable((baseDelay * 1.9 * jitter) + semanticPause)) break;
       }
-    })();
-    return () => { stop = true; };
-  }, [run && run.id, me && me.role]); // eslint-disable-line react-hooks/exhaustive-deps
+    })().catch((cause) => {
+      if (!signal.aborted) setReplayError(cause.message || "The sample replay stopped unexpectedly.");
+    });
+    return () => { stopped = true; controller.abort(); };
+  }, [run && run.id, me && me.role, replayRetry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const state = useMemo(() => reduceEvents(events), [events]);
   const phaseEventRows = useMemo(() => {
@@ -356,8 +530,11 @@ export default function RunRoom({ runId, preview }) {
     () => phaseEventRows.filter((row) => row.phase === selectedPhase).map((row) => row.event),
     [phaseEventRows, selectedPhase],
   );
+  const visitedPhases = useMemo(() => new Set(phaseEventRows.map((row) => row.phase)), [phaseEventRows]);
+  const phaseState = useMemo(() => reduceEvents(selectedPhaseEvents), [selectedPhaseEvents]);
   const liveRun = !!(run && run.mode === "live" && !run.simulated);
   const currentStage = state.stage || (run && run.stage) || "S0";
+  currentStageRef.current = currentStage;
   const lifecycleEvent = [...events].reverse().find((event) => event.kind === "system" && ["RUN_FINISHED", "RUN_BLOCKED", "RUN_CANCELLED"].includes(event.type));
   const runTerminal = state.finished || ["finished", "blocked", "cancelled", "canceled"].includes(run && run.status) || !!lifecycleEvent;
 
@@ -369,26 +546,37 @@ export default function RunRoom({ runId, preview }) {
     if (previous !== null && next !== previous && nextIndex >= 0 && previousIndex >= 0 && followLive) {
       setPhaseDirection(nextIndex < previousIndex ? "backward" : "forward");
       setSelectedPhase(next);
+      selectedPhaseRef.current = next;
+      stick.current = true;
+      setUnseen(0);
     } else if (previous === null && next) {
       setSelectedPhase(next);
+      selectedPhaseRef.current = next;
     }
     previousStage.current = next;
   }, [currentStage, followLive]);
 
-  const visible = useMemo(() => events.filter((e) => {
+  const visible = useMemo(() => selectedPhaseEvents.filter((e) => {
     if (!showActivity && (e.kind === "tool" || e.kind === "ledger")) return false;
     if (agentFilter && e.kind !== "stage") {
       const involved = e.from === agentFilter || (e.to || []).includes(agentFilter) || (e.cc || []).includes(agentFilter);
       if (!involved) return false;
     }
     return true;
-  }), [events, showActivity, agentFilter]);
+  }), [selectedPhaseEvents, showActivity, agentFilter]);
 
   // keep the feed pinned to the newest message unless the reader scrolled up
   useEffect(() => {
     const el = feedRef.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
   }, [visible.length]);
+
+  useEffect(() => {
+    const el = feedRef.current;
+    if (!el) return;
+    if (stick.current) el.scrollTop = el.scrollHeight;
+    else el.scrollTop = 0;
+  }, [selectedPhase]);
 
   function onFeedScroll() {
     const el = feedRef.current;
@@ -404,8 +592,33 @@ export default function RunRoom({ runId, preview }) {
     setUnseen(0);
   }
 
+  function changeSelectedPhase(phase, follow = false) {
+    const previousIndex = STAGES.findIndex((stage) => stage.id === selectedPhaseRef.current);
+    const nextIndex = STAGES.findIndex((stage) => stage.id === phase);
+    if (nextIndex < 0) return;
+    setPhaseDirection(nextIndex < previousIndex ? "backward" : "forward");
+    setSelectedPhase(phase);
+    setFollowLive(follow);
+    selectedPhaseRef.current = phase;
+    stick.current = follow;
+    setUnseen(0);
+  }
+
   function openRef(id) {
-    if (id.startsWith("BROWSER:")) { setTab("browser"); setWatch(id.slice(8)); return; }
+    let phase = null;
+    if (id.startsWith("BROWSER:")) {
+      const session = id.slice(8);
+      phase = phaseForEventRows(phaseEventRows, (event) => event.kind === "browser" && event.data && event.data.session_id === session);
+      if (phase) changeSelectedPhase(phase);
+      setTab("browser");
+      setWatch(session);
+      return;
+    }
+    phase = phaseForEventRows(phaseEventRows, (event) => event.kind === "ledger" && event.data && event.data.id === id)
+      || phaseForEventRows(phaseEventRows, (event) => (event.refs || []).includes(id)
+        || (event.kind === "approval" && event.data && (event.data.id === id || (event.data.refs || []).includes(id)))
+        || (event.data && (event.data.refs || []).includes(id)));
+    if (phase) changeSelectedPhase(phase);
     const type = recordTypeForRef(id);
     if (type) setTab(type);
     setFocus(id);
@@ -419,7 +632,7 @@ export default function RunRoom({ runId, preview }) {
       if (el) el.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     }, 30);
     return () => clearTimeout(t);
-  }, [focus, tab]);
+  }, [focus, tab, selectedPhase]);
 
   async function post(payload) {
     try {
@@ -445,32 +658,19 @@ export default function RunRoom({ runId, preview }) {
 
   const canAct = me && me.role === "approver";
   const pending = state.approvals.filter((a) => !a.decision);
-  const stageIdx = STAGES.findIndex((s) => s.id === state.stage);
   const records = Object.values(state.ledger[tab] || {}).sort((a, b) => a._firstSeq - b._firstSeq);
-  const liveBrowser = state.browsers.find((b) => b.session_id === watch && b.live_url) || state.browsers.find((b) => b.live_url);
+  const liveBrowser = run && run.simulated ? null : state.browsers.find((b) => b.session_id === watch && b.live_url) || state.browsers.find((b) => b.live_url);
   const observedClaims = Object.values(state.ledger.claim).filter((claim) => claim.status === "observed").length;
   const verifiedVerdicts = Object.values(state.ledger.verdict).filter((verdict) => verdict.result === "verified").length;
-  const phaseIndex = stageIdx === 0 ? 0 : stageIdx <= 2 ? 1 : 2;
-  const phases = [
-    { title: "Customer intake", range: "S0" },
-    { title: "Reproduction swarm", range: "S1–S2" },
-    { title: "Implementation & review", range: "S3–S5" },
-  ];
+  const selectedStageEvent = [...selectedPhaseEvents].reverse().find((event) => event.kind === "stage" && event.data && event.data.stage === selectedPhase);
+  const selectedPhaseReason = selectedStageEvent && selectedStageEvent.data.reason;
 
   function selectPhase(phase) {
-    const previousIndex = STAGES.findIndex((stage) => stage.id === selectedPhase);
-    const nextIndex = STAGES.findIndex((stage) => stage.id === phase);
-    setPhaseDirection(nextIndex < previousIndex ? "backward" : "forward");
-    setSelectedPhase(phase);
-    setFollowLive(false);
+    changeSelectedPhase(phase, false);
   }
 
   function resumeFollowing() {
-    const previousIndex = STAGES.findIndex((stage) => stage.id === selectedPhase);
-    const currentIndex = STAGES.findIndex((stage) => stage.id === currentStage);
-    setPhaseDirection(currentIndex < previousIndex ? "backward" : "forward");
-    setSelectedPhase(currentStage);
-    setFollowLive(true);
+    changeSelectedPhase(currentStage, true);
   }
 
   async function stopLiveRun() {
@@ -496,6 +696,8 @@ export default function RunRoom({ runId, preview }) {
 
   function focusApproval(id) {
     setAgentFilter(null);
+    const phase = phaseForEventRows(phaseEventRows, (event) => event.kind === "approval" && event.data && event.data.id === id);
+    if (phase) changeSelectedPhase(phase);
     setFocus(`approval:${id}`);
   }
 
@@ -512,6 +714,7 @@ export default function RunRoom({ runId, preview }) {
         phaseEvents={selectedPhaseEvents}
         agents={state.agents}
         browsers={state.browsers}
+        visitedPhases={visitedPhases}
         connection={conn}
         phase={selectedPhase}
         currentPhase={currentStage}
@@ -525,48 +728,53 @@ export default function RunRoom({ runId, preview }) {
         onStop={stopLiveRun}
       />
     ) : null}
-    <div className={"room" + (liveRun ? " room-live" : "")}>
+    <div className={"room" + (liveRun ? " room-live" : "") + (run && run.simulated ? " room-sample" : "")}>
       <header className="room-head">
         <div className="room-heading">
           <a href="/" className="back">← All investigations</a>
           <div className="room-title-row">
             <div className="room-title">
-              <h1>{run ? run.title : "Loading investigation"}</h1>
+              <h1>{liveRun ? "Conversation & evidence" : run ? run.title : "Loading investigation"}</h1>
               <div className="room-meta">
-                <span className={`conn ${conn}`}>{conn === "live" ? "Connected stream" : conn === "reconnecting" ? "Reconnecting" : "Connecting"}</span>
-                {run && run.simulated ? <span className="pill sim">Simulated replay · no agents are running</span> : run ? <span>{run.workspace}</span> : null}
+                {!liveRun ? <span className={`conn ${conn}`}>{conn === "live" ? "Connected stream" : conn === "reconnecting" ? "Reconnecting" : "Connecting"}</span> : null}
+                {run && run.simulated ? <span className="pill sim">Sample replay · no agents are running</span> : run && !liveRun ? <span>{run.workspace}</span> : null}
                 {state.counts.rejected ? <span className="bad-text">{state.counts.rejected} writes refused</span> : null}
               </div>
             </div>
-            <a className="audit-action" href={`/api/runs/${runId}/export`}>Export audit record <span aria-hidden="true">↗</span></a>
+            <a className="audit-action" href={`/api/runs/${runId}/export`}>Export audit <span aria-hidden="true">↗</span></a>
           </div>
         </div>
-        {!liveRun ? <div className="journey-wrap">
-          <ol className="journey" aria-label="Investigation phases">
-            {phases.map((phase, i) => {
-              const status = i < phaseIndex || (state.finished && i === phaseIndex) ? "complete" : i === phaseIndex ? "current" : "upcoming";
-              return <li key={phase.title} className={status} aria-current={status === "current" ? "step" : undefined}>
-                <span className="phase-mark">{status === "complete" ? "✓" : String(i + 1).padStart(2, "0")}</span>
-                <span className="phase-copy"><strong>{phase.title}</strong><small>{phase.range}{status === "current" ? " · Current" : status === "complete" ? " · Complete" : " · Up next"}</small></span>
-              </li>;
-            })}
-          </ol>
-          <div className="evidence-stats" aria-label="Evidence summary from the ledger">
-            <span><strong>{Object.keys(state.ledger.experiment).length}</strong> experiments</span>
-            <span><strong>{observedClaims}</strong> observed claims</span>
-            <span><strong>{Object.keys(state.ledger.patch).length}</strong> patches</span>
-            <span className={verifiedVerdicts ? "verified-stat" : ""}><strong>{verifiedVerdicts}</strong> verified verdicts</span>
+        {!liveRun ? <>
+          <PhaseTimeline
+            phases={visitedPhases}
+            selectedPhase={selectedPhase}
+            currentStage={currentStage}
+            followLive={followLive}
+            phaseEventCount={selectedPhaseEvents.length}
+            reason={selectedPhaseReason}
+            direction={phaseDirection}
+            onSelect={selectPhase}
+            onFollow={resumeFollowing}
+          />
+          <div className="room-toolbar">
+            <div className="evidence-stats" aria-label="Evidence summary from the ledger">
+              <span><strong>{Object.keys(state.ledger.experiment).length}</strong> experiments</span>
+              <span><strong>{observedClaims}</strong> observations</span>
+              <span><strong>{Object.keys(state.ledger.patch).length}</strong> patches</span>
+              <span className={verifiedVerdicts ? "verified-stat" : ""}><strong>{verifiedVerdicts}</strong> verified verdicts</span>
+            </div>
+            {run && run.simulated ? <div className="replay-controls" aria-label="Sample replay controls">
+              <span className="replay-state"><i />{replayDone ? "Replay complete" : replayPaused ? "Paused" : "Playing sample"}</span>
+              <button type="button" className="replay-toggle" onClick={() => setReplayPaused((paused) => !paused)} disabled={replayDone} aria-label={replayPaused ? "Resume sample replay" : "Pause sample replay"}>
+                <span aria-hidden="true">{replayPaused ? "▶" : "Ⅱ"}</span>{replayPaused ? "Resume" : "Pause"}
+              </button>
+              <div className="speed-control" aria-label="Sample replay speed">
+                {[1, 2].map((speed) => <button key={speed} type="button" onClick={() => setReplaySpeed(speed)} aria-pressed={replaySpeed === speed}>{speed}×</button>)}
+              </div>
+            </div> : null}
           </div>
-        </div> : null}
-        {!liveRun ? <ol className="rail" aria-label="Six-stage pipeline">
-          {STAGES.map((s, i) => (
-            <li key={s.id} className={i < stageIdx ? "done" : i === stageIdx ? "now" : ""} aria-current={i === stageIdx ? "step" : undefined}>
-              <span className="rail-n">{s.id}</span>
-              <span>{s.name}</span>
-            </li>
-          ))}
-          {state.counts.sentBack ? <li className="rail-back">Sent back {state.counts.sentBack} {state.counts.sentBack === 1 ? "time" : "times"}</li> : null}
-        </ol> : null}
+          {replayError ? <p className="replay-error" role="alert">{replayError}<button type="button" onClick={() => { setReplayError(""); setReplayDone(false); setReplayRetry((n) => n + 1); }}>Retry replay</button></p> : null}
+        </> : null}
       </header>
 
       <aside className="roster" aria-label="Team">
@@ -582,8 +790,8 @@ export default function RunRoom({ runId, preview }) {
               <button key={name} className={`member ${agentFilter === name ? "on" : ""}`} onClick={() => setAgentFilter(agentFilter === name ? null : name)} style={{ "--agent": a.color }} aria-pressed={agentFilter === name}>
                 <Avatar name={name} />
                 <span className="member-text">
-                  <span className="member-name">{a.label}{s.busy ? <span className="working" aria-label="working" /> : null}</span>
-                  <span className="member-role">{s.busy && s.lastTool ? s.lastTool.summary : `${a.role} · ${a.model}`}</span>
+                <span className="member-name">{a.label}{s.busy && !(run && run.simulated) ? <span className="working" aria-label="working" /> : null}</span>
+                <span className="member-role">{s.busy && s.lastTool && !(run && run.simulated) ? s.lastTool.summary : `${a.role} · ${a.model}`}</span>
                 </span>
               </button>
             );
@@ -600,15 +808,16 @@ export default function RunRoom({ runId, preview }) {
           <div><span className="eyebrow">Conversation</span><h2>{agentFilter ? who(agentFilter).label : "Swarm activity"}</h2></div>
           <span className="activity-count">{visible.length} {visible.length === 1 ? "event" : "events"}</span>
         </div>
-        <div className="feed" ref={feedRef} onScroll={onFeedScroll} aria-live="polite">
+        <div className={`feed phase-feed slide-${phaseDirection}`} key={selectedPhase} ref={feedRef} onScroll={onFeedScroll} aria-live="polite">
+          {run && run.simulated ? <ReplayStage phase={selectedPhase} events={selectedPhaseEvents} ledger={phaseState.ledger} /> : null}
           {visible.length === 0 ? (
             <div className="empty">
               <span className="empty-mark">✳</span>
-              <h2>{events.length ? "No activity from this agent" : "Waiting for activity"}</h2>
-              <p>{events.length ? "Choose All activity to return to the full investigation stream." : "Messages, experiments and evidence will appear here when the runtime posts them."}</p>
+              <h2>{selectedPhaseEvents.length ? "No activity from this agent" : "Waiting for this phase"}</h2>
+              <p>{selectedPhaseEvents.length ? "Choose All activity to return to this phase’s full stream." : "Phase activity will appear here as the investigation progresses."}</p>
             </div>
           ) : null}
-          {visible.map((e) => <FeedItem key={e.seq} e={e} state={state} onOpen={openRef} canDecide={canAct} onDecide={(id, decision, note) => post({ mode: "decision", approval: id, decision, note })} />)}
+          {visible.map((e) => <FeedItem key={e.seq} e={e} state={state} onOpen={openRef} canDecide={canAct} simulated={!!(run && run.simulated)} onDecide={(id, decision, note) => post({ mode: "decision", approval: id, decision, note })} />)}
         </div>
         {unseen ? <button className="jump" onClick={jumpToLatest}>{unseen} new, jump to latest</button> : null}
         {error ? <p className="notice bad" role="alert">{error}</p> : null}
@@ -647,20 +856,20 @@ export default function RunRoom({ runId, preview }) {
                 <figcaption><span className="conn live">Live</span> {who(liveBrowser.from).label}, {liveBrowser.env}{liveBrowser.experiment ? `, ${liveBrowser.experiment}` : ""}. View only.</figcaption>
               </figure>
             ) : (
-              <div className="browser-empty"><span aria-hidden="true">◉</span><strong>{state.browsers.length ? "No live browser session" : "No browser sessions yet"}</strong><p>{state.browsers.length ? "Finished sessions appear below with their recordings." : "Execution and verification browser sessions will appear here when opened."}</p></div>
+              <div className="browser-empty"><span aria-hidden="true">◉</span><strong>{run && run.simulated ? "Sample browser history" : state.browsers.length ? "No live browser session" : "No browser sessions yet"}</strong><p>{run && run.simulated ? "These fixture entries are illustrative and are not live browser sessions." : state.browsers.length ? "Finished sessions appear below with their recordings." : "Execution and verification browser sessions will appear here when opened."}</p></div>
             )}
             <ul className="records">
               {state.browsers.map((b) => (
                 <li key={b.session_id} className={`record ${watch === b.session_id ? "focused" : ""}`}>
                   <header>
                     <code>{b.experiment || "session"}{b.run ? ` run ${b.run}` : ""}</code>
-                    <Pill value={b.status === "open" ? "running" : b.status === "failed" ? "infra_failure" : "closed"} />
+                    <Pill value={run && run.simulated ? "sample" : b.status === "open" ? "running" : b.status === "failed" ? "infra_failure" : "closed"} />
                     <span className="by">{who(b.from).label}</span>
                   </header>
                   <p>{b.env}</p>
                   <dl>
                     <Field label="Setup">{b.env_detail}</Field>
-                    <Field label="Where">{b.provider === "local" ? "Local Playwright" : "Browserbase cloud"}</Field>
+                    <Field label="Where">{run && run.simulated ? `Sample fixture · ${b.provider === "local" ? "local browser" : "cloud browser"}` : b.provider === "local" ? "Local Playwright" : "Browserbase cloud"}</Field>
                     <Field label="Target">{b.target}</Field>
                     <Field label="Observed">{b.outcome}</Field>
                     <Field label="Recording">{b.replay_url ? <a href={b.replay_url} target="_blank" rel="noreferrer">Open session recording</a> : null}</Field>
