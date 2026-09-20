@@ -1,84 +1,88 @@
 /* The ensemble diagram and the per-agent model picker. */
 
 /* ------------------------------------------------------------------ diagram */
+/* Compact by default. Pass `detailed` to add per-role descriptions. */
 .patch-ensemble {
   background: #fff; border: 1px solid var(--patch-warm-line);
-  border-radius: 18px; overflow: hidden; margin: 0 0 28px;
+  border-radius: 12px; overflow: hidden; margin: 0 0 20px;
 }
 .patch-ensemble-head {
-  display: flex; justify-content: space-between; align-items: center; gap: 16px;
-  padding: 14px 24px; border-bottom: 1px solid var(--patch-warm-line);
-  background: var(--patch-sage); font-size: 11.5px; letter-spacing: .1em;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 8px 16px; border-bottom: 1px solid var(--patch-warm-line);
+  background: var(--patch-sage); font-size: 10px; letter-spacing: .09em;
   text-transform: uppercase; color: var(--patch-olive); font-weight: 600;
 }
 .patch-ensemble-flow {
-  display: grid; grid-template-columns: minmax(200px, 1fr) 28px minmax(320px, 1.7fr) 28px minmax(200px, 1fr);
-  align-items: stretch; gap: 0; padding: 26px 24px;
+  display: grid; grid-template-columns: minmax(130px, .85fr) 18px minmax(250px, 1.5fr) 18px minmax(130px, .85fr);
+  align-items: center; padding: 14px 16px;
 }
 .patch-ensemble-stage {
-  display: flex; flex-direction: column; gap: 7px;
-  border: 1px solid var(--patch-warm-line); border-radius: 14px;
-  padding: 20px; background: #fdfdfb; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  border: 1px solid var(--patch-warm-line); border-radius: 9px;
+  padding: 11px 12px; background: #fdfdfb; min-width: 0;
 }
 .patch-ensemble-stage small {
-  font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase;
-  color: #7c857a; font-weight: 600;
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  color: #8a9288; font-weight: 600;
 }
-.patch-ensemble-stage strong { font-size: 17px; color: var(--patch-charcoal); letter-spacing: -0.01em; }
-.patch-ensemble-stage p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #5c655a; }
+.patch-ensemble-stage strong { font-size: 14px; color: var(--patch-charcoal); letter-spacing: -0.01em; }
+.patch-ensemble-stage p { margin: 2px 0 0; font-size: 11.5px; line-height: 1.4; color: #6b7468; }
+.patch-ensemble-stage em:empty { display: none; }
 .patch-ensemble-stage em {
-  margin-top: auto; padding-top: 10px; font-style: normal; font-size: 12.5px;
-  font-weight: 600; color: var(--patch-olive);
+  padding-top: 4px; font-style: normal; font-size: 11px;
+  font-weight: 600; color: var(--patch-olive); min-height: 0;
 }
 .patch-ensemble-icon {
-  width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
-  background: var(--patch-sage); color: var(--patch-olive); margin-bottom: 4px;
+  width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center;
+  background: var(--patch-sage); color: var(--patch-olive); margin-bottom: 3px;
 }
-.patch-ensemble-arrow { align-self: center; position: relative; height: 2px; background: var(--patch-warm-line); }
+.patch-ensemble-arrow { align-self: center; position: relative; height: 1px; background: var(--patch-warm-line); }
 .patch-ensemble-arrow::after {
-  content: ""; position: absolute; right: -1px; top: 50%; width: 7px; height: 7px;
-  margin-top: -3.5px; border-top: 2px solid var(--patch-warm-line);
-  border-right: 2px solid var(--patch-warm-line); transform: rotate(45deg);
+  content: ""; position: absolute; right: 0; top: 50%; width: 5px; height: 5px;
+  margin-top: -2.5px; border-top: 1px solid var(--patch-warm-line);
+  border-right: 1px solid var(--patch-warm-line); transform: rotate(45deg);
 }
 
-.patch-ensemble-swarm { background: var(--patch-sage); border-color: var(--patch-sage-strong); gap: 12px; }
+.patch-ensemble-swarm { background: var(--patch-sage); border-color: var(--patch-sage-strong); gap: 7px; }
 .patch-ensemble-swarm > header { display: flex; justify-content: space-between; align-items: center; }
 .patch-ensemble-count {
-  font-size: 11px; font-weight: 600; color: var(--patch-olive);
-  background: #fff; border-radius: 999px; padding: 3px 10px;
+  font-size: 9.5px; font-weight: 600; color: var(--patch-olive);
+  background: #fff; border-radius: 999px; padding: 2px 7px;
 }
-.patch-ensemble-swarm ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.patch-ensemble-swarm ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
 .patch-ensemble-swarm li {
-  display: grid; grid-template-columns: 30px 1fr auto; align-items: start; gap: 11px;
+  display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px;
   background: #fff; border: 1px solid var(--patch-sage-strong);
-  border-radius: 11px; padding: 13px 14px;
+  border-radius: 7px; padding: 7px 9px;
 }
-.patch-ensemble-swarm li strong { display: block; font-size: 14.5px; color: var(--patch-charcoal); }
-.patch-ensemble-swarm li p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.45; }
+.patch-ensemble-swarm li strong { display: block; font-size: 12.5px; color: var(--patch-charcoal); }
+.patch-ensemble-swarm li p { margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #6b7468; }
 .patch-ensemble-swarm li em {
-  display: block; margin: 6px 0 0; padding: 0; font-style: normal;
-  font-size: 11.5px; font-weight: 600; color: var(--patch-olive);
+  padding: 0; font-style: normal; font-size: 10.5px; font-weight: 600;
+  color: var(--patch-olive); white-space: nowrap;
 }
 .patch-ensemble-role-icon {
-  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
   background: var(--patch-sage); color: var(--patch-olive);
 }
-.patch-ensemble-index { font-size: 11px; font-weight: 600; color: #9aa398; letter-spacing: .06em; }
-.patch-ensemble-swarm footer { font-size: 12.5px; color: #5c655a; line-height: 1.5; }
-
 .patch-ensemble-foot {
-  display: flex; flex-wrap: wrap; gap: 10px 28px;
-  padding: 15px 24px; border-top: 1px solid var(--patch-warm-line); background: #fcfcfa;
+  display: flex; flex-wrap: wrap; gap: 4px 20px;
+  padding: 8px 16px; border-top: 1px solid var(--patch-warm-line); background: #fcfcfa;
 }
 .patch-ensemble-foot span {
-  display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #5c655a;
+  display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6b7468;
 }
-.patch-ensemble-foot strong { color: var(--patch-charcoal); font-weight: 600; }
+
+/* the roomier form, for anywhere the diagram is the subject rather than context */
+.patch-ensemble.is-detailed .patch-ensemble-flow { padding: 22px 20px; }
+.patch-ensemble.is-detailed .patch-ensemble-stage { padding: 16px; gap: 5px; }
+.patch-ensemble.is-detailed .patch-ensemble-stage strong { font-size: 16px; }
+.patch-ensemble.is-detailed .patch-ensemble-swarm li { grid-template-columns: 26px 1fr auto; padding: 11px 12px; align-items: start; }
 
 @media (max-width: 1020px) {
-  .patch-ensemble-flow { grid-template-columns: 1fr; gap: 14px; }
-  .patch-ensemble-arrow { width: 2px; height: 20px; justify-self: center; background: var(--patch-warm-line); }
-  .patch-ensemble-arrow::after { right: 50%; top: auto; bottom: -1px; margin: 0 -3.5px 0 0; transform: rotate(135deg); }
+  .patch-ensemble-flow { grid-template-columns: 1fr; gap: 9px; }
+  .patch-ensemble-arrow { width: 1px; height: 14px; justify-self: center; }
+  .patch-ensemble-arrow::after { right: 50%; top: auto; bottom: 0; margin: 0 -2.5px 0 0; transform: rotate(135deg); }
 }
 
 /* ------------------------------------------------------------------ picker */

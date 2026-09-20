@@ -1,19 +1,39 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import PatchIcon from "./PatchIcon";
+import { MODELS } from "@/lib/modelCatalog";
 import "./ensemble.css";
 
 const SWARM = [
-  ["compass", "Supervisor", "Directs experiments, owns hypotheses, and can interrupt the swarm."],
-  ["play", "Execution", "Drives the browser harness and runs controlled experiments."],
-  ["layers", "Incidents", "Follows telemetry for errors, warnings and suspicious actions."],
+  ["compass", "Supervisor", "supervisor", "Directs experiments and can interrupt."],
+  ["play", "Execution", "execution", "Drives the browser harness."],
+  ["layers", "Incidents", "incidents", "Follows telemetry for suspicious signals."],
 ];
 
-/** The one canonical picture of how a report becomes a verified fix. */
-export default function EnsembleDiagram({ models = {} }) {
-  const label = (role, fallback) => models[role] || fallback;
+/** The one canonical picture of how a report becomes a verified fix.
+ *  `detailed` adds the per-role descriptions; the overview uses the compact form. */
+export default function EnsembleDiagram({ models, detailed = false }) {
+  const [live, setLive] = useState(null);
+
+  // Show what the ensemble is actually configured to run, not a hard-coded caption.
+  useEffect(() => {
+    if (models) return;
+    let cancelled = false;
+    fetch("/api/agent-models")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && !cancelled) setLive(d.selection); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [models]);
+
+  const chosen = models || live || {};
+  const label = (role, fallback) => {
+    const id = chosen[role];
+    return (id && MODELS[id] ? MODELS[id].label : null) || fallback;
+  };
   return (
-    <section className="patch-ensemble" aria-label="How Patch works">
+    <section className={`patch-ensemble${detailed ? " is-detailed" : ""}`} aria-label="How Patch works">
       <header className="patch-ensemble-head">
         <span>INVESTIGATION FLOW</span>
         <span>Report → Reproduction → Fix</span>
@@ -21,10 +41,10 @@ export default function EnsembleDiagram({ models = {} }) {
 
       <div className="patch-ensemble-flow">
         <article className="patch-ensemble-stage patch-ensemble-intake">
-          <span className="patch-ensemble-icon"><PatchIcon name="inbox" size={18} /></span>
+          <span className="patch-ensemble-icon"><PatchIcon name="inbox" size={15} /></span>
           <small>CUSTOMER AGENT</small>
           <strong>Intake</strong>
-          <p>Turns a report into expected, actual, steps and unknowns.</p>
+          {detailed ? <p>Turns a report into expected, actual, steps and unknowns.</p> : null}
           <em>{label("customer", "Gemini Flash")}</em>
         </article>
 
@@ -36,35 +56,33 @@ export default function EnsembleDiagram({ models = {} }) {
             <span className="patch-ensemble-count">3 roles</span>
           </header>
           <ul>
-            {SWARM.map(([icon, title, desc], i) => (
-              <li key={title}>
-                <span className="patch-ensemble-role-icon"><PatchIcon name={icon} size={15} /></span>
+            {SWARM.map(([icon, title, key, desc]) => (
+              <li key={key}>
+                <span className="patch-ensemble-role-icon"><PatchIcon name={icon} size={13} /></span>
                 <div>
                   <strong>{title}</strong>
-                  <p>{desc}</p>
-                  <em>{label(title.toLowerCase(), "—")}</em>
+                  {detailed ? <p>{desc}</p> : null}
                 </div>
-                <span className="patch-ensemble-index">{String(i + 1).padStart(2, "0")}</span>
+                <em>{label(key, "")}</em>
               </li>
             ))}
           </ul>
-          <footer>Output: controlled experiments, traces, and a failing regression test.</footer>
         </article>
 
         <span className="patch-ensemble-arrow" aria-hidden="true" />
 
         <article className="patch-ensemble-stage patch-ensemble-fix">
-          <span className="patch-ensemble-icon"><PatchIcon name="code" size={18} /></span>
+          <span className="patch-ensemble-icon"><PatchIcon name="code" size={15} /></span>
           <small>IMPLEMENTATION</small>
           <strong>Fix</strong>
-          <p>Patches in an isolated worktree, inside a file allowlist.</p>
+          {detailed ? <p>Patches in an isolated worktree, inside a file allowlist.</p> : null}
           <em>{label("implementation", "Claude Code Opus")}</em>
         </article>
       </div>
 
       <footer className="patch-ensemble-foot">
-        <span><PatchIcon name="shield" size={15} /><strong>Independent verification</strong> Protected tests run against the patch before any verdict is recorded.</span>
-        <span><PatchIcon name="layers" size={15} /><strong>One evidence trail</strong> Every handoff is appended, never overwritten.</span>
+        <span><PatchIcon name="shield" size={13} />Protected tests run before any verdict</span>
+        <span><PatchIcon name="layers" size={13} />One append-only evidence trail</span>
       </footer>
     </section>
   );
