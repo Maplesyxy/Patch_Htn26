@@ -156,8 +156,19 @@ SCRIPT = {
   ],
 
   "qa-engineer": [
-    {"tool": "list_environments"},
+    {"tool": "list_strategies"},
     {"tool": "reset_sandbox"},
+    # Fork first: three kinds of experiment at once, before spending browsers on a matrix.
+    {"tool": "run_probes", "args": {"strategies": ["repeat_action", "state_after_action", "capacity"]}},
+    {"tool": "send_message", "args": {
+        "to": ["incident-lead"], "cc": ["sre-analyst"], "type": "EXPERIMENT_RESULT",
+        "refs": ["HYP-1", "HYP-3"],
+        "body": "Forked into three probes and raced them. Repeating one booking produced two "
+                "reservations with no network fault at all, so the duplicate path is reachable by "
+                "an ordinary customer. Cancelling succeeded and the reservation stayed listed. "
+                "Capacity never decremented. Running the environment matrix next to settle whether "
+                "the retry case is the browser or the site."}},
+    {"tool": "list_environments"},
     {"tool": "run_matrix", "args": {
         "experiment_id": "EXP-3", "hypothesis": "HYP-3",
         "expected_if_true": "A single click with the response dropped yields two reservations on every "

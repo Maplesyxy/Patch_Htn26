@@ -161,3 +161,5 @@
   .patch-role-cards { grid-template-columns: minmax(0,1fr); }
   .patch-role-card { padding: 16px; }
 }
+
+.patch-nav-button { width: 100%; border: 0; background: transparent; font: inherit; cursor: pointer; text-align: left; }

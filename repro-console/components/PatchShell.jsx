@@ -59,7 +59,7 @@ function initials(name) {
   return parts.slice(0, 2).map((part) => part[0].toUpperCase()).join("") || "HT";
 }
 
-export default function PatchShell({ children, active = "overview", title = "Overview", onNavigate, onNewReport, me, onSignOut }) {
+export default function PatchShell({ children, active = "overview", title = "Overview", onNavigate, onNewReport, onCodeReview, me, onSignOut }) {
   const runtimeHref = "/?view=settings";
   const settingsClick = (event) => {
     if (!onNavigate || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -81,6 +81,11 @@ export default function PatchShell({ children, active = "overview", title = "Ove
           {PRIMARY_LINKS.map(([name, label, icon]) => (
             <NavLink key={name} name={name} label={label} icon={icon} active={active} onNavigate={onNavigate} />
           ))}
+          {onCodeReview ? (
+            <button type="button" className="patch-nav-link patch-nav-button" onClick={onCodeReview}>
+              <PatchIcon name="code" size={18} /><span>Code review</span>
+            </button>
+          ) : null}
           <div className="patch-nav-divider" />
           <span className="patch-nav-caption">Configuration</span>
           <a className={"patch-nav-link patch-settings-nav" + (active === "settings" ? " is-active" : "")} href={runtimeHref} onClick={settingsClick} aria-current={active === "settings" ? "page" : undefined}>
