@@ -1,0 +1,156 @@
+/* The ensemble diagram and the per-agent model picker. */
+
+/* ------------------------------------------------------------------ diagram */
+/* Compact by default. Pass `detailed` to add per-role descriptions. */
+.patch-ensemble {
+  background: #fff; border: 1px solid var(--patch-warm-line);
+  border-radius: 12px; overflow: hidden; margin: 0 0 20px;
+}
+.patch-ensemble-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 8px 16px; border-bottom: 1px solid var(--patch-warm-line);
+  background: var(--patch-sage); font-size: 10px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--patch-olive); font-weight: 600;
+}
+.patch-ensemble-flow {
+  display: grid; grid-template-columns: minmax(130px, .85fr) 18px minmax(250px, 1.5fr) 18px minmax(130px, .85fr);
+  align-items: center; padding: 14px 16px;
+}
+.patch-ensemble-stage {
+  display: flex; flex-direction: column; gap: 2px;
+  border: 1px solid var(--patch-warm-line); border-radius: 9px;
+  padding: 11px 12px; background: #fdfdfb; min-width: 0;
+}
+.patch-ensemble-stage small {
+  font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+  color: #8a9288; font-weight: 600;
+}
+.patch-ensemble-stage strong { font-size: 14px; color: var(--patch-charcoal); letter-spacing: -0.01em; }
+.patch-ensemble-stage p { margin: 2px 0 0; font-size: 11.5px; line-height: 1.4; color: #6b7468; }
+.patch-ensemble-stage em:empty { display: none; }
+.patch-ensemble-stage em {
+  padding-top: 4px; font-style: normal; font-size: 11px;
+  font-weight: 600; color: var(--patch-olive); min-height: 0;
+}
+.patch-ensemble-icon {
+  width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center;
+  background: var(--patch-sage); color: var(--patch-olive); margin-bottom: 3px;
+}
+.patch-ensemble-arrow { align-self: center; position: relative; height: 1px; background: var(--patch-warm-line); }
+.patch-ensemble-arrow::after {
+  content: ""; position: absolute; right: 0; top: 50%; width: 5px; height: 5px;
+  margin-top: -2.5px; border-top: 1px solid var(--patch-warm-line);
+  border-right: 1px solid var(--patch-warm-line); transform: rotate(45deg);
+}
+
+.patch-ensemble-swarm { background: var(--patch-sage); border-color: var(--patch-sage-strong); gap: 7px; }
+.patch-ensemble-swarm > header { display: flex; justify-content: space-between; align-items: center; }
+.patch-ensemble-count {
+  font-size: 9.5px; font-weight: 600; color: var(--patch-olive);
+  background: #fff; border-radius: 999px; padding: 2px 7px;
+}
+.patch-ensemble-swarm ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.patch-ensemble-swarm li {
+  display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px;
+  background: #fff; border: 1px solid var(--patch-sage-strong);
+  border-radius: 7px; padding: 7px 9px;
+}
+.patch-ensemble-swarm li strong { display: block; font-size: 12.5px; color: var(--patch-charcoal); }
+.patch-ensemble-swarm li p { margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #6b7468; }
+.patch-ensemble-swarm li em {
+  padding: 0; font-style: normal; font-size: 10.5px; font-weight: 600;
+  color: var(--patch-olive); white-space: nowrap;
+}
+.patch-ensemble-role-icon {
+  width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+  background: var(--patch-sage); color: var(--patch-olive);
+}
+.patch-ensemble-foot {
+  display: flex; flex-wrap: wrap; gap: 4px 20px;
+  padding: 8px 16px; border-top: 1px solid var(--patch-warm-line); background: #fcfcfa;
+}
+.patch-ensemble-foot span {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6b7468;
+}
+
+/* the roomier form, for anywhere the diagram is the subject rather than context */
+.patch-ensemble.is-detailed .patch-ensemble-flow { padding: 22px 20px; }
+.patch-ensemble.is-detailed .patch-ensemble-stage { padding: 16px; gap: 5px; }
+.patch-ensemble.is-detailed .patch-ensemble-stage strong { font-size: 16px; }
+.patch-ensemble.is-detailed .patch-ensemble-swarm li { grid-template-columns: 26px 1fr auto; padding: 11px 12px; align-items: start; }
+
+@media (max-width: 1020px) {
+  .patch-ensemble-flow { grid-template-columns: 1fr; gap: 9px; }
+  .patch-ensemble-arrow { width: 1px; height: 14px; justify-self: center; }
+  .patch-ensemble-arrow::after { right: 50%; top: auto; bottom: 0; margin: 0 -2.5px 0 0; transform: rotate(135deg); }
+}
+
+/* ------------------------------------------------------------------ picker */
+.patch-ensemble-config { display: grid; gap: 18px; margin: 0 0 30px; }
+.patch-ensemble-config-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
+}
+.patch-ensemble-hint {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  font-size: 13.5px; color: #5c655a;
+}
+.patch-ensemble-actions { display: flex; align-items: center; gap: 12px; }
+.patch-save-state { font-size: 12.5px; color: var(--patch-olive); font-weight: 600; }
+.patch-save-state.bad { color: #9f2f3f; }
+
+.patch-role-cards {
+  display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+}
+.patch-role-card {
+  background: #fff; border: 1px solid var(--patch-warm-line); border-radius: 14px;
+  padding: 18px; display: flex; flex-direction: column; gap: 10px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.patch-role-card.is-conflicted {
+  border-color: #e7b9bf; box-shadow: 0 0 0 3px rgba(159, 47, 63, .07);
+}
+.patch-role-card > header { display: grid; grid-template-columns: 32px 1fr auto; gap: 11px; align-items: start; }
+.patch-role-card-icon {
+  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--patch-sage); color: var(--patch-olive);
+}
+.patch-role-card header strong { font-size: 15px; color: var(--patch-charcoal); }
+.patch-role-card header p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.45; color: #6b7468; }
+.patch-family-mark {
+  width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--fam); color: #fff; font-size: 12px; font-weight: 700;
+}
+.patch-role-card select {
+  width: 100%; padding: 9px 11px; border: 1px solid var(--patch-warm-line);
+  border-radius: 9px; font: inherit; font-size: 14px; background: #fdfdfb; color: var(--patch-charcoal);
+}
+.patch-role-card select:focus {
+  outline: none; border-color: var(--patch-olive); box-shadow: 0 0 0 3px rgba(59, 81, 52, .10);
+}
+.patch-role-note { margin: 0; font-size: 12.5px; color: #6b7468; line-height: 1.45; }
+.patch-role-wants { margin: 0; font-size: 12px; color: #7c857a; line-height: 1.45; }
+.patch-role-wants span {
+  font-weight: 600; color: var(--patch-olive); text-transform: uppercase;
+  letter-spacing: .07em; font-size: 10.5px; margin-right: 5px;
+}
+.patch-role-env {
+  margin-top: auto; font-size: 11.5px; background: var(--patch-sage); color: var(--patch-olive);
+  padding: 5px 8px; border-radius: 6px; overflow-wrap: anywhere;
+}
+
+.patch-conflicts { display: grid; gap: 10px; }
+.patch-conflict {
+  display: grid; grid-template-columns: 18px 1fr; gap: 11px; align-items: start; margin: 0;
+  background: #fdf3f4; border: 1px solid #f0cdd3; border-left: 3px solid #b4404f;
+  border-radius: 10px; padding: 13px 15px; color: #7d2b36; font-size: 13px; line-height: 1.55;
+}
+.patch-conflict strong { display: block; margin-bottom: 3px; color: #8f2d3a; font-size: 13.5px; }
+.patch-conflict svg { margin-top: 2px; }
+.patch-no-conflict {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  font-size: 13px; color: var(--patch-olive);
+}
+.patch-separation { font-size: 13px; color: #5c655a; }
+.patch-separation summary { cursor: pointer; font-weight: 600; color: var(--patch-olive); }
+.patch-separation ul { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 7px; line-height: 1.55; }
+.patch-separation strong { color: var(--patch-charcoal); text-transform: capitalize; }
