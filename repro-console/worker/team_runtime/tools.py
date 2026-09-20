@@ -138,12 +138,40 @@ class ToolBox:
 
     # -- support-engineer -------------------------------------------------------------
     def t_read_tickets(self, agent, args):
+        """The seeded inbox plus anything a real person has submitted on the site.
+
+        A report typed into /feedback during the demo arrives here on the next read, which
+        is the whole point: a judge files a bug and watches it enter the pipeline.
+        """
         data = _fixture("tickets.json")
-        tickets = data["tickets"]
+        tickets = list(data["tickets"])
+
+        live = []
+        try:
+            for f in self._sandbox("/api/sandbox/feedback")["feedback"]:
+                live.append({
+                    "id": f["id"],
+                    "account": f.get("account"),
+                    "channel": "review" if f.get("kind") == "review" else "web_report",
+                    "received": f.get("created_at"),
+                    "subject": f.get("subject", ""),
+                    "body": f.get("body", ""),
+                    "rating": f.get("rating"),
+                    "restaurant": f.get("restaurant"),
+                    "reported_from_page": f.get("page"),
+                    "client_hint": f.get("client_hint"),
+                    "internal_notes": ["Submitted live on the site. Unverified, like any other report."],
+                })
+        except BlockedInfra:
+            # The site being unreachable must not blank the inbox. Say so instead.
+            live = []
+            self._report(agent, "tickets", "live feedback unreachable; seeded inbox only", "error")
+
+        tickets += live
         if args.get("id"):
             tickets = [t for t in tickets if t["id"] == args["id"]]
-        self._report(agent, "tickets", f"read {len(tickets)} tickets")
-        return {"count": len(tickets), "tickets": tickets, "note": data["_note"]}
+        self._report(agent, "tickets", f"read {len(tickets)} tickets ({len(live)} submitted live)")
+        return {"count": len(tickets), "live_reports": len(live), "tickets": tickets, "note": data["_note"]}
 
     def t_lookup_account(self, agent, args):
         acct = args.get("account", "")

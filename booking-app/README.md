@@ -1,12 +1,14 @@
-# Sandbox booking app
+# Tablewise — sandbox booking app
 
-The system under test for the Repro agent team. A restaurant booking form, a reservations
-API, and the three read-only logs an investigator would reach for.
+The system under test. A restaurant booking site with a catalogue, a booking flow, a
+reservations list, a customer problem-report form, and the read-only logs an investigator
+would reach for.
 
 Everything in here is synthetic. Account ids only; no names, no email addresses.
 
-> This deployment carries a seeded defect on purpose. The root cause is deliberately not
-> written down in this repo, because the agents read this repo.
+> This deployment carries seeded defects on purpose. Their root causes are deliberately
+> not written down in this repo, because the agents read this repo. The key lives in
+> `repro-console/worker/fixtures/truth.json`, which no tool exposes.
 
 ## Run it
 
@@ -44,7 +46,9 @@ means `POST /api/sandbox/reset` actually resets what the next request will see.
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/bookings` | `{account, date, slot}` → `{reservation}`. Reads `X-Correlation-Id` and `Idempotency-Key`. |
+| POST | `/api/bookings` | `{account, date, slot, restaurant, party_size}` → `{reservation}`. Reads `X-Correlation-Id` and `Idempotency-Key`. |
+| POST | `/api/feedback` | Customer bug report or review. Account id only, no names or emails |
+| GET | `/api/sandbox/feedback?kind=&since=` | What customers submitted. The agent team's live intake |
 | GET | `/api/bookings?account=A-1001` | Same as the reservations read, plus the slot list |
 | POST | `/api/sandbox/reset` | Wipe and reseed. Needs `x-sandbox-admin` when `SANDBOX_ADMIN` is set |
 | GET | `/api/sandbox/reservations?account=` | The system of record |
@@ -52,7 +56,20 @@ means `POST /api/sandbox/reset` actually resets what the next request will see.
 | GET | `/api/sandbox/emails?account=` | What was sent. Sends and reservations are not 1:1 |
 | GET | `/api/health` | Store kind, git branch, whether reset is guarded |
 
-Slots: `12:00 12:30 18:00 18:30 19:00 19:30 20:00`. Accounts match `A-\d{4}`.
+Slots: `9:00 9:30 12:00 12:30 18:00 18:30 19:00 19:30 20:00`. Accounts match `A-\d{4}`.
+
+## Pages
+
+| Path | What it is |
+|---|---|
+| `/` | Restaurant catalogue |
+| `/restaurants/<id>` | One restaurant and its sittings |
+| `/book?account=&restaurant=&slot=` | The booking form. The reproduction steps drive this page |
+| `/reservations?account=` | What the customer has booked |
+| `/feedback?account=` | Report a problem or leave a review. This is the demo's front door |
+
+A report submitted at `/feedback` appears in the agent team's intake on the next
+`read_tickets`, so a judge can file a bug and watch it enter the pipeline.
 
 ## Seeded accounts, after a reset
 

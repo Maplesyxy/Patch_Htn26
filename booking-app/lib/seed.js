@@ -15,6 +15,7 @@ const SEED_RESERVATIONS = [
   { id: "R-100", account: "A-1002", date: "2026-09-24", slot: "18:30", created_at: at(20), source: "web" },
   { id: "R-101", account: "A-1004", date: "2026-09-25", slot: "12:00", created_at: at(41), source: "web" },
   { id: "R-102", account: "A-1004", date: "2026-10-02", slot: "20:00", created_at: at(88), source: "web" },
+  { id: "R-103", account: "A-1004", date: "2026-10-02", slot: "9:00", created_at: at(90), source: "web", party_size: 2 },
 ];
 
 const SEED_EMAILS = [
@@ -39,11 +40,11 @@ const SEED_REQUESTS = [
     correlation_id: null, idempotency_key: null, reservation: null, duration_ms: 43 },
 ];
 
-export async function reseed() {
-  await wipe();
+export async function reseed({ keepFeedback = true } = {}) {
+  await wipe({ keepFeedback });
   for (const r of SEED_RESERVATIONS) await addReservation(r);
   for (const e of SEED_EMAILS) await addEmail(e);
   for (const q of SEED_REQUESTS) await addRequest(q);
-  await setCounter(102); // next reservation is R-103
+  await setCounter(103); // next reservation is R-104
   return { reservations: SEED_RESERVATIONS.length, emails: SEED_EMAILS.length, requests: SEED_REQUESTS.length };
 }

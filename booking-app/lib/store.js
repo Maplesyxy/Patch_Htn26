@@ -14,13 +14,14 @@ const redis = url && token ? new Redis({ url, token }) : null;
 export const storeKind = redis ? "redis" : "memory";
 
 const g = globalThis;
-if (!g.__bookingMem) g.__bookingMem = { reservations: [], requests: [], emails: [], counter: 0 };
+if (!g.__bookingMem) g.__bookingMem = { reservations: [], requests: [], emails: [], feedback: [], counter: 0 };
 const mem = g.__bookingMem;
 
 const K = {
   reservations: "booking:reservations",
   requests: "booking:requests",
   emails: "booking:emails",
+  feedback: "booking:feedback",
   counter: "booking:counter",
 };
 
@@ -72,9 +73,24 @@ export async function listEmails(account) {
   return account ? rows.filter((r) => r.account === account) : rows;
 }
 
-export async function wipe() {
-  if (redis) await redis.del(K.reservations, K.requests, K.emails, K.counter);
-  else { mem.reservations = []; mem.requests = []; mem.emails = []; mem.counter = 0; }
+export async function addFeedback(row) { await push(K.feedback, "feedback", row, MAX_LOG); }
+export async function listFeedback({ kind, since } = {}) {
+  let rows = await readAll(K.feedback, "feedback");
+  if (kind) rows = rows.filter((r) => r.kind === kind);
+  if (since) rows = rows.filter((r) => r.created_at > since);
+  return rows;
+}
+
+export async function wipe({ keepFeedback = false } = {}) {
+  // Feedback survives a reset by default: a judge's bug report should not vanish the
+  // next time QA resets the sandbox mid-run.
+  const keys = [K.reservations, K.requests, K.emails, K.counter];
+  if (!keepFeedback) keys.push(K.feedback);
+  if (redis) await redis.del(...keys);
+  else {
+    mem.reservations = []; mem.requests = []; mem.emails = []; mem.counter = 0;
+    if (!keepFeedback) mem.feedback = [];
+  }
 }
 
 export async function setCounter(n) {

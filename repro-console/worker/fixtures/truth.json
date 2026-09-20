@@ -1,20 +1,41 @@
 {
-  "_note": "Hand-labelled ground truth for scoring a run. The agents never see this file. Task 4's 'hand count written down for scoring'.",
+  "_note": "Hand-labelled ground truth for scoring a run, and the key to every seeded fault. The agents never see this file: no tool exposes it, and it is not in the booking-app repo.",
   "incidents_expected": 2,
   "incidents": {
     "duplicate_reservations": {
       "verdict": "confirmed_defect",
       "root_cause": "POST /api/bookings has no idempotency check; the client fetch wrapper retries once on a transport error, so a lost response yields a second reservation.",
-      "tickets": ["T-01", "T-02", "T-05", "T-08", "T-09", "T-12_NO", "T-14"],
-      "tickets_correct": ["T-01", "T-02", "T-05", "T-08", "T-09", "T-14"]
+      "tickets": [
+        "T-01",
+        "T-02",
+        "T-05",
+        "T-08",
+        "T-09",
+        "T-12_NO",
+        "T-14"
+      ],
+      "tickets_correct": [
+        "T-01",
+        "T-02",
+        "T-05",
+        "T-08",
+        "T-09",
+        "T-14"
+      ]
     },
     "duplicate_confirmation_emails": {
       "verdict": "not_a_defect_for_reservations",
       "note": "The mailer retried. One reservation, two sends. Must NOT be merged into the duplicate-reservations incident.",
-      "tickets_correct": ["T-03", "T-12"]
+      "tickets_correct": [
+        "T-03",
+        "T-12"
+      ]
     }
   },
-  "insufficient_evidence": ["T-04", "T-11"],
+  "insufficient_evidence": [
+    "T-04",
+    "T-11"
+  ],
   "unrelated_or_separate": {
     "T-06": "Reported a hang, never confirmed whether a booking was created. Needs an account lookup, not an incident.",
     "T-10": "Payment holds after cancellation. A billing question, not the booking defect.",
@@ -28,6 +49,39 @@
   "scoring": {
     "confirmed_defect_accuracy": "1 of 1 real defects found, 0 false positives",
     "false_merges": "T-03 and T-12 must NOT land in the duplicate-reservations incident",
-    "unsupported_resolved_claims": "target 0"
+    "unsupported_resolved_claims": "target 0",
+    "faults_expected": "F1, F2, F3 are real defects. F4 is not. An agent that reports 4 defects has a false positive."
+  },
+  "seeded_faults": {
+    "F1_duplicate_reservations": {
+      "where": "app/api/bookings/route.js + lib/apiClient.js",
+      "what": "POST /api/bookings reads Idempotency-Key and never checks it. The client retries once on a transport error, re-sending the same key, so a lost response creates a second reservation.",
+      "trigger": "One click with the response dropped after the server has processed it.",
+      "visibility": "Invisible on a clean network. Needs fault injection or a genuinely bad connection.",
+      "correct_fix": "Server-side: reject or return the existing reservation when the idempotency key has been seen.",
+      "wrong_fix": "Disabling the button. Already shipped on 2026-09-12 and it did nothing.",
+      "verified": "3/3 clean = 1 reservation, 3/3 dropped = 2, across Chromium, WebKit and Firefox."
+    },
+    "F2_reservation_ordering": {
+      "where": "app/reservations/page.js",
+      "what": "Sorts by the string `${date} ${slot}`. Slots are not zero-padded, so '9:00' sorts after '20:00'.",
+      "trigger": "An account holding both a single-digit-hour and a double-digit-hour booking on the same date.",
+      "visibility": "Pure UI, no network needed, but only appears with that exact mix of bookings.",
+      "correct_fix": "Zero-pad the slot list, or sort on parsed hours. Padding the data is the better fix.",
+      "verified": "A-1021 with 9:00, 12:00, 20:00 renders 12:00 -> 20:00 -> 9:00."
+    },
+    "F3_party_size_clamp": {
+      "where": "app/api/bookings/route.js",
+      "what": "Party size is clamped to MAX_PARTY (8) and stored clamped, but the response echoes the number the customer asked for, so the confirmation says 12 and the table is for 8.",
+      "trigger": "Booking for 10 or 12, which the form offers.",
+      "visibility": "The UI and the confirmation both look correct. Only the system of record disagrees. This is the fault that punishes an agent for trusting the screen.",
+      "correct_fix": "Reject the booking with a clear message, or seat it and say so. Do not silently disagree with the confirmation.",
+      "verified": "party_size 12 -> confirmation says 12, database row says 8."
+    },
+    "F4_duplicate_emails_NOT_A_BUG": {
+      "where": "seeded data only",
+      "what": "The mailer retried once. One reservation, two confirmation emails.",
+      "why_it_is_here": "The look-alike. Two emails is not two bookings, and it must not be merged into F1."
+    }
   }
 }
