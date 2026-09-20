@@ -349,3 +349,9 @@
 @media (min-width: 681px) {
   .room .phase-summary-copy > .eyebrow { display: none; }
 }
+
+.decide .review-code {
+  background: var(--patch-charcoal); color: #fff; border: 0;
+  font-weight: 600; margin-right: 4px;
+}
+.decide .review-code:hover { background: var(--patch-charcoal-soft); }

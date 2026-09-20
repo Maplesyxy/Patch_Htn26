@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS, AGENT_GROUPS, HUMAN, STAGES, PUSHBACK_TYPES, recordTypeForRef } from "@/lib/agents";
 import { reduceEvents } from "@/lib/reduce";
 import PatchShell from "./PatchShell";
+import CodeReview from "./CodeReview";
 import LiveInvestigation from "./LiveInvestigation";
 import ReplayStage from "./ReplayStage";
 import "./room.css";
@@ -165,10 +166,17 @@ function ActivityItem({ e }) {
   );
 }
 
-function ApprovalItem({ e, approval, canDecide, onDecide }) {
+function ApprovalItem({ e, approval, canDecide, onDecide, onReviewCode }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const d = approval && approval.decision;
+  // Offer the diff only where a code change is actually on the table. Matching the
+  // detail text is too loose: "a fix is in review" appears in the customer-reply
+  // approval, which has no code to read.
+  const wantsCodeReview = Boolean(onReviewCode) && (
+    (e.data.refs || []).some((r) => /^PATCH-/i.test(String(r)))
+    || /pull request|\bPR\b|\bdiff\b|\bmerge\b|\bbranch\b/i.test(e.data.title || "")
+  );
   async function decide(decision) {
     setBusy(true);
     try {
@@ -191,6 +199,11 @@ function ApprovalItem({ e, approval, canDecide, onDecide }) {
         <p className={`decided ${d.decision}`}>{sentence(d.decision)} by {d.actor}{d.note ? `: ${d.note}` : ""}</p>
       ) : canDecide ? (
         <div className="decide">
+          {wantsCodeReview ? (
+            <button type="button" className="btn review-code" onClick={onReviewCode}>
+              Review the code
+            </button>
+          ) : null}
           <input value={note} onChange={(ev) => setNote(ev.target.value)} placeholder="Optional note for the record" aria-label="Note" />
           <button className="btn primary" disabled={busy} onClick={() => decide("approved")}>Approve</button>
           <button className="btn" disabled={busy} onClick={() => decide("rejected")}>Reject</button>
@@ -202,11 +215,11 @@ function ApprovalItem({ e, approval, canDecide, onDecide }) {
   );
 }
 
-function FeedItem({ e, state, onOpen, canDecide, onDecide, simulated }) {
+function FeedItem({ e, state, onOpen, canDecide, onDecide, simulated, onReviewCode }) {
   if (e.kind === "message") return <MessageItem e={e} onOpen={onOpen} />;
   if (e.kind === "activity") return <ActivityItem e={e} />;
   if (e.kind === "approval") {
-    return <ApprovalItem e={e} approval={state.approvals.find((a) => a.id === e.data.id)} canDecide={canDecide} onDecide={onDecide} />;
+    return <ApprovalItem e={e} approval={state.approvals.find((a) => a.id === e.data.id)} canDecide={canDecide} onDecide={onDecide} onReviewCode={onReviewCode} />;
   }
   if (e.kind === "stage") {
     const back = state.directions[e.seq] === "backward";
@@ -361,6 +374,7 @@ export default function RunRoom({ runId, preview }) {
   const [showActivity, setShowActivity] = useState(true);
   const [tab, setTab] = useState((preview && preview.tab) || "incident");
   const [focus, setFocus] = useState(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [unseen, setUnseen] = useState(0);
@@ -705,11 +719,11 @@ export default function RunRoom({ runId, preview }) {
   }
 
   if (error && !run) {
-    return <PatchShell active="investigations" title="Investigation" me={me}><main className="room-load-error"><p className="notice bad" role="alert">{error}</p><a className="btn" href="/">Back to investigations</a></main></PatchShell>;
+    return <PatchShell active="investigations" title="Investigation" onCodeReview={() => setReviewOpen(true)} me={me}><main className="room-load-error"><p className="notice bad" role="alert">{error}</p><a className="btn" href="/">Back to investigations</a></main></PatchShell>;
   }
 
   return (
-    <PatchShell active="investigations" title="Investigation" onNewReport={() => { window.location.href = "/?intake=1"; }} me={me}>
+    <PatchShell active="investigations" title="Investigation" onNewReport={() => { window.location.href = "/?intake=1"; }} onCodeReview={() => setReviewOpen(true)} me={me}>
     {liveRun ? (
       <LiveInvestigation
         run={run}
@@ -820,7 +834,7 @@ export default function RunRoom({ runId, preview }) {
               <p>{selectedPhaseEvents.length ? "Choose All activity to return to this phase’s full stream." : "Phase activity will appear here as the investigation progresses."}</p>
             </div>
           ) : null}
-          {visible.map((e) => <FeedItem key={e.seq} e={e} state={state} onOpen={openRef} canDecide={canAct} simulated={!!(run && run.simulated)} onDecide={(id, decision, note) => post({ mode: "decision", approval: id, decision, note })} />)}
+          {visible.map((e) => <FeedItem key={e.seq} e={e} state={state} onOpen={openRef} canDecide={canAct} simulated={!!(run && run.simulated)} onDecide={(id, decision, note) => post({ mode: "decision", approval: id, decision, note })} onReviewCode={() => setReviewOpen(true)} />)}
         </div>
         {unseen ? <button className="jump" onClick={jumpToLatest}>{unseen} new, jump to latest</button> : null}
         {error ? <p className="notice bad" role="alert">{error}</p> : null}
@@ -889,6 +903,7 @@ export default function RunRoom({ runId, preview }) {
         </ul>
       </aside>
     </div>
+      <CodeReview runId={runId} open={reviewOpen} onClose={() => setReviewOpen(false)} />
     </PatchShell>
   );
 }
