@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   bookingTargetMatches,
+  bookingBuildEnvironment,
   claudeEnvironment,
   parseClaudeOutput,
   parseRegressionOutput,
@@ -25,6 +26,20 @@ test("Claude child environment retains account lookup context but excludes unrel
   assert.equal(env.ANTHROPIC_API_KEY, "anthropic-test");
   assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, "oauth-test");
   assert.equal(env.CI, "1");
+  assert.equal("GEMINI_API_KEY" in env, false);
+  assert.equal("BROWSERBASE_API_KEY" in env, false);
+  assert.equal("PATCH_RUNTIME_TOKEN" in env, false);
+});
+
+test("isolated booking build uses production mode without inheriting provider credentials", () => {
+  const env = bookingBuildEnvironment({
+    PATH: "/usr/bin", HOME: "/tmp/home", NODE_ENV: "development",
+    GEMINI_API_KEY: "gemini-test", BROWSERBASE_API_KEY: "browserbase-test", PATCH_RUNTIME_TOKEN: "runtime-test",
+  });
+  assert.equal(env.NODE_ENV, "production");
+  assert.equal(env.CI, "1");
+  assert.equal(env.NEXT_TELEMETRY_DISABLED, "1");
+  assert.equal(env.HOME, "/tmp/home");
   assert.equal("GEMINI_API_KEY" in env, false);
   assert.equal("BROWSERBASE_API_KEY" in env, false);
   assert.equal("PATCH_RUNTIME_TOKEN" in env, false);

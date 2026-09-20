@@ -162,6 +162,19 @@ export function claudeEnvironment(source = process.env) {
   return env;
 }
 
+export function bookingBuildEnvironment(source = process.env) {
+  const env = {};
+  for (const name of ["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "SystemRoot", "WINDIR", "USERPROFILE"]) {
+    if (source[name]) env[name] = source[name];
+  }
+  return Object.assign(env, {
+    NODE_ENV: "production",
+    NEXT_TELEMETRY_DISABLED: "1",
+    SANDBOX_ADMIN: "",
+    CI: "1",
+  });
+}
+
 function runProcess(command, args, { cwd, env, signal, timeoutMs = 120000, maxOutput = MAX_OUTPUT, input } = {}) {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new FixError("Investigation was cancelled."));
@@ -467,7 +480,7 @@ export async function runBookingFix({ runId, targetUrl, report, packet = {}, emi
 
     await emitEvent(emit, activity("release-verifier", "observing", "S4", 3, "Protected retry, concurrency, distinct-booking, validation, and GET checks pass on the isolated branch.", JSON.stringify(patched.checks)));
     const buildResult = await runProcess("npm", ["run", "build"], {
-      cwd: path.join(worktree, INCLUDED_APP_REL), env: { ...minimalEnv({ server: true }), CI: "1" }, timeoutMs: 240000, signal, maxOutput: MAX_OUTPUT,
+      cwd: path.join(worktree, INCLUDED_APP_REL), env: bookingBuildEnvironment(), timeoutMs: 240000, signal, maxOutput: MAX_OUTPUT,
     });
     build = buildResult.code === 0 ? "pass" : "fail";
     if (build !== "pass") {

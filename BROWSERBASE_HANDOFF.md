@@ -62,4 +62,4 @@ The worker needs local disk for `.patch-runs/` and worktrees. A serverless Next.
 - [Browserbase live view and embedding](https://docs.browserbase.com/platform/browser/observability/session-live-view)
 - [Claude Code programmatic mode](https://code.claude.com/docs/en/headless)
 
-Cloud-session validation is pending teammate credentials. Local Chromium session creation, DOM actions, screenshots, and cleanup have passed a real booking-app smoke test. The protected suite has confirmed the expected two baseline failures and five passing controls. Complete model-loop validation is tracked in `CODEX_LOG.md`.
+Cloud-session validation is pending teammate credentials. A controlled Chromium trial produced one booking on a clean click and two when its completed server response was dropped, causing a client retry. Real Claude implementation then generated an isolated patch that passed all seven protected HTTP checks and a production build after correcting the build subprocess environment. All 33 automated tests pass. The complete autonomous browser-model round still needs confirmation; detailed validation and its limits are tracked in `CODEX_LOG.md`.
