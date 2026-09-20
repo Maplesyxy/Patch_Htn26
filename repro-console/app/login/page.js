@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import PatchIcon from "@/components/PatchIcon";
+import { PatchMark } from "@/components/PatchShell";
 
 export default function Login() {
   const [name, setName] = useState("");
@@ -8,7 +10,8 @@ export default function Login() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function signIn() {
+  async function signIn(event) {
+    if (event) event.preventDefault();
     setBusy(true);
     setError("");
     try {
@@ -29,22 +32,21 @@ export default function Login() {
 
   return (
     <main className="login">
-      <div className="login-box">
-        <h1>Repro console</h1>
-        <p className="muted">Sign in to watch investigations. Approvers can also add evidence and sign off on pull requests and customer replies.</p>
+      <form className="login-box" onSubmit={signIn}>
+        <a className="patch-brand" href="/" aria-label="Patch home"><PatchMark size={34} /><span>patch</span></a>
+        <h1>Welcome to Patch</h1>
+        <p className="muted">Sign in to follow investigations, add evidence, and approve release decisions.</p>
         <label htmlFor="name">Your name</label>
-        <input id="name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Recorded on every approval" />
+        <input id="name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Recorded on approvals" required />
         <label htmlFor="pw">Team password</label>
-        <input
-          id="pw" type="password" value={password} autoComplete="current-password"
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") signIn(); }}
-        />
+        <input id="pw" type="password" value={password} autoComplete="current-password" onChange={(e) => setPassword(e.target.value)} required />
         {error ? <p className="error" role="alert">{error}</p> : null}
-        <button className="btn primary" onClick={signIn} disabled={busy || !name || !password}>
-          {busy ? "Signing in" : "Sign in"}
+        <button className="patch-button patch-button-primary" type="submit" disabled={busy || !name || !password}>
+          {busy ? "Signing in…" : "Sign in"}
+          {!busy ? <PatchIcon name="arrowRight" size={15} /> : null}
         </button>
-      </div>
+        <p className="patch-login-foot"><PatchIcon name="shield" size={13} />Your approvals are recorded with your name.</p>
+      </form>
     </main>
   );
 }

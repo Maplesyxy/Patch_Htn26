@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AGENTS, HUMAN, STAGES, PUSHBACK_TYPES, recordTypeForRef } from "@/lib/agents";
+import { AGENTS, AGENT_GROUPS, HUMAN, STAGES, PUSHBACK_TYPES, recordTypeForRef } from "@/lib/agents";
 import { reduceEvents } from "@/lib/reduce";
+import PatchShell from "./PatchShell";
+import "./room.css";
 
 const RECORD_TABS = [
   ["incident", "Incidents"],
@@ -81,8 +83,11 @@ function ApprovalItem({ e, approval, canDecide, onDecide }) {
   const d = approval && approval.decision;
   async function decide(decision) {
     setBusy(true);
-    await onDecide(e.data.id, decision, note);
-    setBusy(false);
+    try {
+      await onDecide(e.data.id, decision, note);
+    } finally {
+      setBusy(false);
+    }
   }
   return (
     <article className={`approval ${d ? d.decision : "pending"}`} id={`apr-${e.data.id}`}>
@@ -369,7 +374,7 @@ export default function RunRoom({ runId, preview }) {
 
   useEffect(() => {
     if (!focus) return;
-    const target = focus.startsWith("APR-") ? `apr-${focus}` : focus.startsWith("MSG-") ? `msg-${focus}` : `rec-${focus}`;
+    const target = focus.startsWith("approval:") ? `apr-${focus.slice(9)}` : focus.startsWith("APR-") ? `apr-${focus}` : focus.startsWith("MSG-") ? `msg-${focus}` : `rec-${focus}`;
     const t = setTimeout(() => {
       const el = document.getElementById(target);
       if (el) el.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
@@ -378,17 +383,25 @@ export default function RunRoom({ runId, preview }) {
   }, [focus, tab]);
 
   async function post(payload) {
-    const res = await fetch(`/api/runs/${runId}/human`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "That did not go through."); return false; }
-    setError("");
-    return true;
+    try {
+      const res = await fetch(`/api/runs/${runId}/human`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error || "That did not go through."); return false; }
+      setError("");
+      return true;
+    } catch {
+      setError("Could not reach the server. Your message was not sent.");
+      return false;
+    }
   }
 
   async function sendDraft() {
     if (!draft.trim()) return;
     setSending(true);
-    if (await post({ mode: "message", body: draft })) { setDraft(""); stick.current = true; }
-    setSending(false);
+    try {
+      if (await post({ mode: "message", body: draft })) { setDraft(""); stick.current = true; }
+    } finally {
+      setSending(false);
+    }
   }
 
   const canAct = me && me.role === "approver";
@@ -396,30 +409,63 @@ export default function RunRoom({ runId, preview }) {
   const stageIdx = STAGES.findIndex((s) => s.id === state.stage);
   const records = Object.values(state.ledger[tab] || {}).sort((a, b) => a._firstSeq - b._firstSeq);
   const liveBrowser = state.browsers.find((b) => b.session_id === watch && b.live_url) || state.browsers.find((b) => b.live_url);
+  const observedClaims = Object.values(state.ledger.claim).filter((claim) => claim.status === "observed").length;
+  const verifiedVerdicts = Object.values(state.ledger.verdict).filter((verdict) => verdict.result === "verified").length;
+  const phaseIndex = stageIdx === 0 ? 0 : stageIdx <= 2 ? 1 : 2;
+  const phases = [
+    { title: "Customer intake", range: "S0" },
+    { title: "Reproduction swarm", range: "S1–S2" },
+    { title: "Implementation & review", range: "S3–S5" },
+  ];
+
+  function focusApproval(id) {
+    setAgentFilter(null);
+    setFocus(`approval:${id}`);
+  }
 
   if (error && !run) {
-    return <main className="home"><p className="notice bad" role="alert">{error}</p><a className="btn" href="/">Back to investigations</a></main>;
+    return <PatchShell active="investigations" title="Investigation" me={me}><main className="room-load-error"><p className="notice bad" role="alert">{error}</p><a className="btn" href="/">Back to investigations</a></main></PatchShell>;
   }
 
   return (
+    <PatchShell active="investigations" title="Investigation" onNewReport={() => { window.location.href = "/?intake=1"; }} me={me}>
     <div className="room">
       <header className="room-head">
-        <div className="room-title">
-          <a href="/" className="back">Investigations</a>
-          <h1>{run ? run.title : "Loading run"}</h1>
-          <div className="room-meta">
-            <span className={`conn ${conn}`}>{conn === "live" ? "Live" : conn === "reconnecting" ? "Reconnecting" : "Connecting"}</span>
-            {run && run.simulated ? <span className="pill sim">Simulated replay, no agents are running</span> : run ? <span className="pill">{run.workspace}</span> : null}
-            <span>{state.counts.events} events</span>
-            <span>{state.counts.pushbacks} challenges and pushbacks</span>
-            {state.counts.rejected ? <span className="bad-text">{state.counts.rejected} writes refused</span> : null}
-            <a href={`/api/runs/${runId}/export`}>Download audit record</a>
+        <div className="room-heading">
+          <a href="/" className="back">← All investigations</a>
+          <div className="room-title-row">
+            <div className="room-title">
+              <h1>{run ? run.title : "Loading investigation"}</h1>
+              <div className="room-meta">
+                <span className={`conn ${conn}`}>{conn === "live" ? "Connected stream" : conn === "reconnecting" ? "Reconnecting" : "Connecting"}</span>
+                {run && run.simulated ? <span className="pill sim">Simulated replay · no agents are running</span> : run ? <span>{run.workspace}</span> : null}
+                {state.counts.rejected ? <span className="bad-text">{state.counts.rejected} writes refused</span> : null}
+              </div>
+            </div>
+            <a className="audit-action" href={`/api/runs/${runId}/export`}>Export audit record <span aria-hidden="true">↗</span></a>
           </div>
         </div>
-        <ol className="rail" aria-label="Pipeline stage">
+        <div className="journey-wrap">
+          <ol className="journey" aria-label="Investigation phases">
+            {phases.map((phase, i) => {
+              const status = i < phaseIndex || (state.finished && i === phaseIndex) ? "complete" : i === phaseIndex ? "current" : "upcoming";
+              return <li key={phase.title} className={status} aria-current={status === "current" ? "step" : undefined}>
+                <span className="phase-mark">{status === "complete" ? "✓" : String(i + 1).padStart(2, "0")}</span>
+                <span className="phase-copy"><strong>{phase.title}</strong><small>{phase.range}{status === "current" ? " · Current" : status === "complete" ? " · Complete" : " · Up next"}</small></span>
+              </li>;
+            })}
+          </ol>
+          <div className="evidence-stats" aria-label="Evidence summary from the ledger">
+            <span><strong>{Object.keys(state.ledger.experiment).length}</strong> experiments</span>
+            <span><strong>{observedClaims}</strong> observed claims</span>
+            <span><strong>{Object.keys(state.ledger.patch).length}</strong> patches</span>
+            <span className={verifiedVerdicts ? "verified-stat" : ""}><strong>{verifiedVerdicts}</strong> verified verdicts</span>
+          </div>
+        </div>
+        <ol className="rail" aria-label="Six-stage pipeline">
           {STAGES.map((s, i) => (
             <li key={s.id} className={i < stageIdx ? "done" : i === stageIdx ? "now" : ""} aria-current={i === stageIdx ? "step" : undefined}>
-              <span className="rail-n">{i + 1}</span>
+              <span className="rail-n">{s.id}</span>
               <span>{s.name}</span>
             </li>
           ))}
@@ -428,33 +474,42 @@ export default function RunRoom({ runId, preview }) {
       </header>
 
       <aside className="roster" aria-label="Team">
-        <button className={`member all ${agentFilter === null ? "on" : ""}`} onClick={() => setAgentFilter(null)}>
-          <span className="member-name">Whole team</span>
+        <button className={`member all ${agentFilter === null ? "on" : ""}`} onClick={() => setAgentFilter(null)} aria-pressed={agentFilter === null}>
+          <span className="member-name">All activity</span>
         </button>
-        {Object.entries(AGENTS).map(([name, a]) => {
-          const s = state.agents[name];
-          return (
-            <button key={name} className={`member ${agentFilter === name ? "on" : ""}`} onClick={() => setAgentFilter(agentFilter === name ? null : name)} style={{ "--agent": a.color }} aria-pressed={agentFilter === name}>
-              <Avatar name={name} />
-              <span className="member-text">
-                <span className="member-name">{a.label}{s.busy ? <span className="working" aria-label="working" /> : null}</span>
-                <span className="member-role">{s.busy && s.lastTool ? s.lastTool.summary : `${a.model || a.role}, ${s.messages} sent`}</span>
-              </span>
-            </button>
-          );
-        })}
+        {AGENT_GROUPS.map((group) => <section className="roster-group" key={group.label} aria-label={group.label}>
+          <h2>{group.label}</h2>
+          {group.agents.map((name) => {
+            const a = AGENTS[name];
+            const s = state.agents[name];
+            return (
+              <button key={name} className={`member ${agentFilter === name ? "on" : ""}`} onClick={() => setAgentFilter(agentFilter === name ? null : name)} style={{ "--agent": a.color }} aria-pressed={agentFilter === name}>
+                <Avatar name={name} />
+                <span className="member-text">
+                  <span className="member-name">{a.label}{s.busy ? <span className="working" aria-label="working" /> : null}</span>
+                  <span className="member-role">{s.busy && s.lastTool ? s.lastTool.summary : `${a.role} · ${a.model}`}</span>
+                </span>
+              </button>
+            );
+          })}
+        </section>)}
         <label className="toggle">
           <input type="checkbox" checked={showActivity} onChange={(e) => setShowActivity(e.target.checked)} />
-          Show ledger writes and tool activity
+          Show ledger and tool activity
         </label>
       </aside>
 
       <section className="chat" aria-label="Team conversation">
+        <div className="panel-head feed-head">
+          <div><span className="eyebrow">Conversation</span><h2>{agentFilter ? who(agentFilter).label : "Swarm activity"}</h2></div>
+          <span className="activity-count">{visible.length} {visible.length === 1 ? "event" : "events"}</span>
+        </div>
         <div className="feed" ref={feedRef} onScroll={onFeedScroll} aria-live="polite">
           {visible.length === 0 ? (
             <div className="empty">
-              <h2>{events.length ? "Nothing from this agent yet" : "Waiting for the team"}</h2>
-              <p>{events.length ? "Pick Whole team to see everything." : "Messages appear here the moment the agent runtime posts them."}</p>
+              <span className="empty-mark">✳</span>
+              <h2>{events.length ? "No activity from this agent" : "Waiting for activity"}</h2>
+              <p>{events.length ? "Choose All activity to return to the full investigation stream." : "Messages, experiments and evidence will appear here when the runtime posts them."}</p>
             </div>
           ) : null}
           {visible.map((e) => <FeedItem key={e.seq} e={e} state={state} onOpen={openRef} canDecide={canAct} onDecide={(id, decision, note) => post({ mode: "decision", approval: id, decision, note })} />)}
@@ -474,10 +529,11 @@ export default function RunRoom({ runId, preview }) {
       </section>
 
       <aside className="ledger" aria-label="Evidence ledger">
+        <div className="panel-head evidence-head"><div><span className="eyebrow">Investigation record</span><h2>Evidence &amp; handoff</h2></div><span className="ledger-total">{Object.values(state.ledger).reduce((n, group) => n + Object.keys(group).length, 0)} records</span></div>
         {pending.length ? (
           <div className="pending">
             <strong>{pending.length} waiting for sign-off</strong>
-            {pending.map((a) => <button key={a.id} className="chip" onClick={() => setFocus(a.id)}>{a.id}: {a.title}</button>)}
+            {pending.map((a) => <button key={a.id} className="pending-link" onClick={() => focusApproval(a.id)}><span>{a.id}</span>{a.title}<span aria-hidden="true">↗</span></button>)}
           </div>
         ) : null}
         <div className="tabs" role="tablist">
@@ -495,7 +551,7 @@ export default function RunRoom({ runId, preview }) {
                 <figcaption><span className="conn live">Live</span> {who(liveBrowser.from).label}, {liveBrowser.env}{liveBrowser.experiment ? `, ${liveBrowser.experiment}` : ""}. View only.</figcaption>
               </figure>
             ) : (
-              <p className="muted pad">{state.browsers.length ? "No browser is open right now. Finished sessions are listed below with their recordings." : "When the QA engineer or the verifier opens a browser, you can watch it here."}</p>
+              <div className="browser-empty"><span aria-hidden="true">◉</span><strong>{state.browsers.length ? "No live browser session" : "No browser sessions yet"}</strong><p>{state.browsers.length ? "Finished sessions appear below with their recordings." : "Execution and verification browser sessions will appear here when opened."}</p></div>
             )}
             <ul className="records">
               {state.browsers.map((b) => (
@@ -525,5 +581,6 @@ export default function RunRoom({ runId, preview }) {
         </ul>
       </aside>
     </div>
+    </PatchShell>
   );
 }

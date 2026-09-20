@@ -2,12 +2,12 @@
 // `model` is a display label only: change it here when you change the model in the agent runtime.
 
 export const AGENTS = {
-  "incident-lead":     { label: "Supervisor agent",     short: "SV", role: "Swarm supervisor", model: "JiuwenSwarm leader", color: "#8B684A" },
+  "incident-lead":     { label: "Supervisor agent",     short: "SV", role: "Swarm supervisor", model: "Reasoning & coordination", color: "#8B684A" },
   "support-engineer":  { label: "Customer agent",        short: "CU", role: "Customer intake", model: "Gemini Flash", color: "#9B7657" },
-  "sre-analyst":       { label: "Incidents agent",       short: "IN", role: "Incident signals", model: "DeepSeek V4.1 Flash", color: "#547C80" },
-  "qa-engineer":       { label: "Execution agent",       short: "EX", role: "Browser experiments", model: "Gemini 3.1 Pro", color: "#6C7F9A" },
-  "software-engineer": { label: "Implementation agent",  short: "IM", role: "Implementation", model: "Implementation runtime", color: "#607B55" },
-  "release-verifier":  { label: "Verification agent",    short: "VE", role: "Independent verification", model: "GPT-5.6 Sol", color: "#A47A42" },
+  "sre-analyst":       { label: "Incidents agent",       short: "IN", role: "Incident signals", model: "Log analysis", color: "#547C80" },
+  "qa-engineer":       { label: "Execution agent",       short: "EX", role: "Browser experiments", model: "Browser harness", color: "#6C7F9A" },
+  "software-engineer": { label: "Implementation agent",  short: "IM", role: "Implementation", model: "Claude Code · planned", color: "#607B55" },
+  "release-verifier":  { label: "Verification agent",    short: "VE", role: "Independent verification", model: "Protected tests", color: "#A47A42" },
 };
 
 // Display-only grouping for the investigation room. Agent keys stay canonical
