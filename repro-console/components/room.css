@@ -26,7 +26,7 @@
 .room h1,.room h2,.room p { margin: 0; }
 .room button,.room input,.room textarea { font: inherit; }
 .room button:focus-visible,.room a:focus-visible,.room input:focus-visible,.room textarea:focus-visible { outline: 2px solid var(--room-accent); outline-offset: 3px; }
-.room-head { position: sticky; top: 0; z-index: 5; grid-area: head; display: grid; gap: 9px; min-width: 0; padding: 12px 20px 10px; border-bottom: 1px solid var(--room-line); background: var(--room-white); box-shadow: 0 4px 12px rgba(23,62,67,.045); }
+.room-head { position: relative; grid-area: head; display: grid; gap: 9px; min-width: 0; padding: 12px 20px 10px; border-bottom: 1px solid var(--room-line); background: var(--room-white); box-shadow: 0 4px 12px rgba(23,62,67,.045); }
 .room-live .room-head { gap: 8px; padding-top: 13px; padding-bottom: 12px; }
 .room-live .room-title h1 { font-size: 21px; letter-spacing: -.02em; }
 .room-heading { display: grid; gap: 4px; min-width: 0; }

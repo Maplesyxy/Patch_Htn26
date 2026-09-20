@@ -56,3 +56,4 @@
 - Pinned the desktop investigation summary, reduced chat card spacing, improved reference contrast, and hid internal panel scrollbars while retaining scrolling.
 - Replaced repetitive simulation disclaimers with a compact Demo label and clearer display titles. Retained all demo execution guards and original event data.
 - Preserved both existing preview investigations and model selections across the local UI rebuild. Production build and desktop/mobile visual checks validate the presentation changes.
+- Clarified the sticky target: phase overview cards now remain at the top of the conversation scroll area, while the general run header scrolls away. Verified Reproduction and Implementation cards stay fixed as their message feeds scroll; tall overviews retain their own bounded scrolling.
