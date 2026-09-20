@@ -10,7 +10,11 @@ import CodeReview from "@/components/CodeReview";
 import PatchShell from "@/components/PatchShell";
 import { STAGES } from "@/lib/agents";
 
-const VIEWS = ["overview", "investigations", "agents", "about", "settings"];
+const DEMO_ONLY = process.env.NEXT_PUBLIC_DEMO_ONLY === "1";
+const DEMO_ME = { name: "Demo visitor", role: "viewer", open: false, signInOn: false };
+const DEMO_RUN = { id: "demo", title: "Simulated replay: duplicate reservations from one booking attempt", workspace: "Hack the North", stage: "S0", status: "running", simulated: true, demoIndex: 0, eventCount: 0, createdAt: "2026-09-20T12:00:00.000Z" };
+
+const VIEWS = DEMO_ONLY ? ["overview", "investigations", "agents", "about"] : ["overview", "investigations", "agents", "about", "settings"];
 const FILTERS = [
   ["all", "All"],
   ["in_progress", "In progress"],
@@ -153,7 +157,7 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
             <h2>Investigations</h2>
             <span className="patch-total-count">{runs ? runs.length : "—"}</span>
           </div>
-          <p>Live investigations and demos.</p>
+          <p>{DEMO_ONLY ? "Sample investigation." : "Live investigations and demos."}</p>
         </div>
         <label className="patch-search">
           <PatchIcon name="search" size={16} />
@@ -169,7 +173,7 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
             </button>
           ))}
         </div>
-        <span className="patch-refreshing"><i /> Updates every 5 sec</span>
+        {DEMO_ONLY ? <span className="patch-refreshing">Demo sample</span> : <span className="patch-refreshing"><i /> Updates every 5 sec</span>}
       </div>
       <div className="patch-run-table-wrap">
         <table className="patch-run-table">
@@ -180,14 +184,14 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
               return (
                 <tr key={run.id}>
                   <td>
-                    <a className="patch-run-title" href={"/runs/" + encodeURIComponent(run.id)}>{displayRunTitle(run)}</a>
+                    <a className="patch-run-title" href={"/runs/" + encodeURIComponent(run.id) + (DEMO_ONLY ? "/" : "")}>{displayRunTitle(run)}</a>
                     <span className="patch-run-subtitle">{run.simulated ? <><span className="patch-simulated-tag"><i />Demo</span><span>{run.id}</span></> : <span>{run.workspace || "Workspace"} · {run.id}</span>}</span>
                   </td>
                   <td><span className="patch-stage-value"><span>{run.stage || "S0"}</span>{stageName(run.stage)}</span></td>
                   <td><span className={"patch-status patch-status-" + outcome.className}><i />{outcome.label}</span></td>
                   <td className="patch-event-count">{run.eventCount || 0} events</td>
                   <td className="patch-date">{formatDate(run.createdAt)}</td>
-                  <td><a className="patch-open-run" href={"/runs/" + encodeURIComponent(run.id)} aria-label={"Open " + displayRunTitle(run)}><PatchIcon name="arrowRight" size={15} /></a></td>
+                  <td><a className="patch-open-run" href={"/runs/" + encodeURIComponent(run.id) + (DEMO_ONLY ? "/" : "")} aria-label={"Open " + displayRunTitle(run)}><PatchIcon name="arrowRight" size={15} /></a></td>
                 </tr>
               );
             })}
@@ -211,7 +215,7 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
       </div>
       <div className="patch-table-footer">
         <span>Showing <strong>{visible.length}</strong> of <strong>{runs ? runs.length : "—"}</strong> investigations</span>
-        <span><i className="patch-footer-dot" /> Synced with Patch runtime</span>
+        <span>{DEMO_ONLY ? "Demo workspace" : <><i className="patch-footer-dot" /> Synced with Patch runtime</>}</span>
       </div>
     </section>
   );
@@ -236,10 +240,10 @@ function JourneyStrip() {
   );
 }
 
-function Overview({ runs, loading, onStart, starting, filter, onFilter, search, onSearch, error, onReport }) {
+function Overview({ runs, loading, onStart, starting, filter, onFilter, search, onSearch, error, onReport, reportDisabled }) {
   return (
     <>
-      <HeroIntro onReport={onReport} onDemo={onStart} starting={starting} />
+      <HeroIntro onReport={onReport} onDemo={onStart} starting={starting} reportDisabled={reportDisabled} />
       {error ? <div className="patch-inline-error" role="alert"><PatchIcon name="alert" size={16} />{error}</div> : null}
       <JourneyStrip />
       <RunTable runs={runs} loading={loading} filter={filter} onFilter={onFilter} search={search} onSearch={onSearch} />
@@ -247,7 +251,7 @@ function Overview({ runs, loading, onStart, starting, filter, onFilter, search, 
   );
 }
 
-function AgentsView({ canEdit }) {
+function AgentsView({ canEdit, demoOnly }) {
   return (
     <>
       <ViewHeading
@@ -257,7 +261,7 @@ function AgentsView({ canEdit }) {
       >
         Each role has one job and its own model. Pairings that need to disagree are checked below.
       </ViewHeading>
-      <AgentEnsemble canEdit={canEdit} />
+      <AgentEnsemble canEdit={canEdit} demoOnly={demoOnly} />
       <section className="patch-principles-grid">
         <article><span>01</span><h2>Evidence over assertion</h2><p>A claim needs a source. A challenge needs a test that can settle it.</p></article>
         <article><span>02</span><h2>Clear responsibility</h2><p>Agents receive only the write permissions needed for their role.</p></article>
@@ -320,13 +324,13 @@ function SettingsView({ me }) {
   );
 }
 
-function AboutView({ onStart, starting }) {
+function AboutView({ onStart, starting, demoOnly }) {
   return (
     <>
       <ViewHeading eyebrow="About Patch" title="A clearer path from report to fix.">
         Patch turns a customer’s report into a reproducible failure, then carries the evidence forward to a verified handoff.
       </ViewHeading>
-      <EnsembleDiagram />
+      <EnsembleDiagram models={demoOnly ? {} : undefined} />
       <div className="patch-feature-grid patch-about-feature-grid">
         <SampleReplay starting={starting} onStart={onStart} />
         <EvidenceCard />
@@ -344,8 +348,8 @@ function AboutView({ onStart, starting }) {
 }
 
 export default function Home() {
-  const [me, setMe] = useState(null);
-  const [runs, setRuns] = useState(null);
+  const [me, setMe] = useState(DEMO_ONLY ? DEMO_ME : null);
+  const [runs, setRuns] = useState(DEMO_ONLY ? [DEMO_RUN] : null);
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
   const [view, setView] = useState("overview");
@@ -388,6 +392,12 @@ export default function Home() {
   }, []);
 
   const load = useCallback(async () => {
+    if (DEMO_ONLY) {
+      setMe(DEMO_ME);
+      setRuns([DEMO_RUN]);
+      setLoadError("");
+      return;
+    }
     try {
       const [meResponse, runsResponse] = await Promise.all([fetch("/api/me", { cache: "no-store" }), fetch("/api/runs", { cache: "no-store" })]);
       if (meResponse.status === 401 || runsResponse.status === 401) {
@@ -426,11 +436,16 @@ export default function Home() {
 
   useEffect(() => {
     load();
+    if (DEMO_ONLY) return undefined;
     const timer = window.setInterval(load, 5000);
     return () => window.clearInterval(timer);
   }, [load]);
 
   async function startReplay() {
+    if (DEMO_ONLY) {
+      window.location.href = "/runs/demo/";
+      return;
+    }
     setStarting(true);
     setError("");
     try {
@@ -465,23 +480,23 @@ export default function Home() {
 
   return (
     <>
-      <PatchShell active={active} title={titles[view]} onNavigate={navigate} onNewReport={openIntake} onCodeReview={openCodeReview} me={me} onSignOut={signOut}>
+      <PatchShell active={active} title={titles[view]} onNavigate={navigate} onNewReport={DEMO_ONLY ? null : openIntake} onCodeReview={DEMO_ONLY ? null : openCodeReview} me={me} onSignOut={signOut} demoOnly={DEMO_ONLY}>
         <div className="patch-main-content">
-          {view === "overview" ? <Overview runs={runs} loading={!runs && !loadError} onStart={startReplay} starting={starting} onReport={openIntake} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch} error={error || loadError} /> : null}
+          {view === "overview" ? <Overview runs={runs} loading={!runs && !loadError} onStart={startReplay} starting={starting} onReport={openIntake} reportDisabled={DEMO_ONLY} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch} error={error || loadError} /> : null}
           {view === "investigations" ? (
             <>
-              <ViewHeading eyebrow="Your workspace" title="Investigations" action={<button className="patch-button patch-button-primary" type="button" onClick={openIntake}><PatchIcon name="plus" size={16} />Report a bug</button>}>Review live work and open an investigation to inspect its evidence.</ViewHeading>
+              <ViewHeading eyebrow="Your workspace" title="Investigations" action={<button className={`patch-button patch-button-primary${DEMO_ONLY ? " patch-demo-disabled" : ""}`} type="button" onClick={openIntake} disabled={DEMO_ONLY} title={DEMO_ONLY ? "Available in the live workspace" : undefined}><PatchIcon name="plus" size={16} />Report a bug</button>}>Review work and open an investigation to inspect its evidence.</ViewHeading>
               {error || loadError ? <div className="patch-inline-error" role="alert"><PatchIcon name="alert" size={16} />{error || loadError}</div> : null}
               <RunTable runs={runs} loading={!runs && !loadError} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch} expanded />
             </>
           ) : null}
-          {view === "agents" ? <AgentsView canEdit={!me || me.role === "approver" || me.open} /> : null}
-          {view === "about" ? <AboutView onStart={startReplay} starting={starting} /> : null}
+          {view === "agents" ? <AgentsView canEdit={!DEMO_ONLY && (!me || me.role === "approver" || me.open)} demoOnly={DEMO_ONLY} /> : null}
+          {view === "about" ? <AboutView onStart={startReplay} starting={starting} demoOnly={DEMO_ONLY} /> : null}
           {view === "settings" ? <SettingsView me={me} /> : null}
         </div>
       </PatchShell>
-      <CustomerIntake open={intakeOpen} onClose={closeIntake} />
-      <CodeReview runId={review.runId} open={review.open} onClose={() => setReview({ open: false, runId: null })} />
+      {!DEMO_ONLY ? <CustomerIntake open={intakeOpen} onClose={closeIntake} /> : null}
+      {!DEMO_ONLY ? <CodeReview runId={review.runId} open={review.open} onClose={() => setReview({ open: false, runId: null })} /> : null}
     </>
   );
 }

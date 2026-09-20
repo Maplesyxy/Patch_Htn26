@@ -3,7 +3,7 @@
 import { useState } from "react";
 import PatchIcon from "@/components/PatchIcon";
 
-export default function HeroIntro({ onReport, onDemo, starting = false }) {
+export default function HeroIntro({ onReport, onDemo, starting = false, reportDisabled = false }) {
   const [paused, setPaused] = useState(false);
 
   return (
@@ -12,7 +12,7 @@ export default function HeroIntro({ onReport, onDemo, starting = false }) {
         <h1 id="patch-hero-title">Every bug has a story.<br /><span>Let’s find the fix.</span></h1>
         <p className="patch-hero-description">Turn a customer report into a failure you can reproduce — and a fix you can prove.</p>
         <div className="patch-hero-actions">
-          <button className="patch-button patch-button-primary" type="button" onClick={onReport}><PatchIcon name="plus" size={17} />Report a bug</button>
+          {onReport ? <button className={`patch-button patch-button-primary${reportDisabled ? " patch-demo-disabled" : ""}`} type="button" onClick={onReport} disabled={reportDisabled} title={reportDisabled ? "Available in the live workspace" : undefined}><PatchIcon name="plus" size={17} />Report a bug</button> : null}
           <button className="patch-button patch-button-secondary" type="button" onClick={onDemo} disabled={starting}>
             <span className={starting ? "patch-demo-loading" : "patch-demo-play"} aria-hidden="true">{starting ? null : <PatchIcon name="play" size={13} />}</span>
             {starting ? "Starting demo…" : "Watch a demo"}

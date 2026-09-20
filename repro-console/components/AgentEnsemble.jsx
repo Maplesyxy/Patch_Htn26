@@ -5,13 +5,14 @@ import PatchIcon from "./PatchIcon";
 import "./ensemble.css";
 import { CONFLICTS, DEFAULTS, FAMILIES, MODELS, ROLES, conflictsFor } from "@/lib/modelCatalog";
 
-export default function AgentEnsemble({ canEdit = true, onChange }) {
+export default function AgentEnsemble({ canEdit = true, onChange, demoOnly = false }) {
   const [selection, setSelection] = useState(DEFAULTS);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (demoOnly) return undefined;
     let cancelled = false;
     fetch("/api/agent-models")
       .then((r) => (r.ok ? r.json() : null))
@@ -50,7 +51,7 @@ export default function AgentEnsemble({ canEdit = true, onChange }) {
       <div className="patch-ensemble-config-bar">
         <p className="patch-ensemble-hint">
           <PatchIcon name="shield" size={14} />
-          A starred model is our recommendation for that role. You can change any of them.
+          {demoOnly ? "Recommended models are shown for this demo workspace." : "A starred model is our recommendation for that role. You can change any of them."}
         </p>
         <div className="patch-ensemble-actions">
           {status ? <span className="patch-save-state">{status}</span> : null}
