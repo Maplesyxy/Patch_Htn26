@@ -248,7 +248,7 @@ function FeedItem({ e, state, onOpen, canDecide, onDecide, simulated }) {
     return (
       <div className={`line ${d.status === "failed" ? "tool error" : ""}`} style={{ "--agent": who(e.from).color }}>
         <span className="dot" />
-        <span>{who(e.from).label} {verb} {simulated ? "a sample browser fixture" : `a ${d.provider === "local" ? "local" : "cloud"} browser`}</span>
+        <span>{who(e.from).label} {verb} {simulated ? "the demo browser view" : `a ${d.provider === "local" ? "local" : "cloud"} browser`}</span>
         <button className="chip" onClick={() => onOpen(`BROWSER:${d.session_id}`)}>{d.env || "session"}{d.run ? `, run ${d.run}` : ""}</button>
         {d.experiment ? <RefChip id={d.experiment} onOpen={onOpen} /> : null}
         <span className="line-text">{d.outcome || d.target}</span>
@@ -488,7 +488,7 @@ export default function RunRoom({ runId, preview }) {
           const text = await response.text();
           try { data = text ? JSON.parse(text) : {}; }
           catch { throw new Error("The replay service returned an unreadable response."); }
-          if (!response.ok) throw new Error(data.error || "The sample replay could not continue.");
+          if (!response.ok) throw new Error(data.error || "The demo could not continue.");
         } catch (cause) {
           if (signal.aborted) break;
           setReplayError(cause.message || "Could not reach the replay service.");
@@ -510,7 +510,7 @@ export default function RunRoom({ runId, preview }) {
         if (!await waitPausable((baseDelay * 1.9 * jitter) + semanticPause)) break;
       }
     })().catch((cause) => {
-      if (!signal.aborted) setReplayError(cause.message || "The sample replay stopped unexpectedly.");
+      if (!signal.aborted) setReplayError(cause.message || "The demo stopped unexpectedly.");
     });
     return () => { stopped = true; controller.abort(); };
   }, [run && run.id, me && me.role, replayRetry]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -533,6 +533,9 @@ export default function RunRoom({ runId, preview }) {
   const visitedPhases = useMemo(() => new Set(phaseEventRows.map((row) => row.phase)), [phaseEventRows]);
   const phaseState = useMemo(() => reduceEvents(selectedPhaseEvents), [selectedPhaseEvents]);
   const liveRun = !!(run && run.mode === "live" && !run.simulated);
+  const roomTitle = run && run.simulated
+    ? String(run.title || "").replace(/^simulated replay:\s*/i, "").replace(/^./, (letter) => letter.toUpperCase())
+    : run && run.title;
   const currentStage = state.stage || (run && run.stage) || "S0";
   currentStageRef.current = currentStage;
   const lifecycleEvent = [...events].reverse().find((event) => event.kind === "system" && ["RUN_FINISHED", "RUN_BLOCKED", "RUN_CANCELLED"].includes(event.type));
@@ -734,10 +737,10 @@ export default function RunRoom({ runId, preview }) {
           <a href="/" className="back">← All investigations</a>
           <div className="room-title-row">
             <div className="room-title">
-              <h1>{liveRun ? "Conversation & evidence" : run ? run.title : "Loading investigation"}</h1>
+              <h1>{liveRun ? "Conversation & evidence" : run ? roomTitle : "Loading investigation"}</h1>
               <div className="room-meta">
                 {!liveRun ? <span className={`conn ${conn}`}>{conn === "live" ? "Connected stream" : conn === "reconnecting" ? "Reconnecting" : "Connecting"}</span> : null}
-                {run && run.simulated ? <span className="pill sim">Sample replay · no agents are running</span> : run && !liveRun ? <span>{run.workspace}</span> : null}
+                {run && run.simulated ? <span className="pill sim">Demo</span> : run && !liveRun ? <span>{run.workspace}</span> : null}
                 {state.counts.rejected ? <span className="bad-text">{state.counts.rejected} writes refused</span> : null}
               </div>
             </div>
@@ -763,12 +766,12 @@ export default function RunRoom({ runId, preview }) {
               <span><strong>{Object.keys(state.ledger.patch).length}</strong> patches</span>
               <span className={verifiedVerdicts ? "verified-stat" : ""}><strong>{verifiedVerdicts}</strong> verified verdicts</span>
             </div>
-            {run && run.simulated ? <div className="replay-controls" aria-label="Sample replay controls">
-              <span className="replay-state"><i />{replayDone ? "Replay complete" : replayPaused ? "Paused" : "Playing sample"}</span>
-              <button type="button" className="replay-toggle" onClick={() => setReplayPaused((paused) => !paused)} disabled={replayDone} aria-label={replayPaused ? "Resume sample replay" : "Pause sample replay"}>
+            {run && run.simulated ? <div className="replay-controls" aria-label="Demo controls">
+              <span className="replay-state"><i />{replayDone ? "Complete" : replayPaused ? "Paused" : "Playing"}</span>
+              <button type="button" className="replay-toggle" onClick={() => setReplayPaused((paused) => !paused)} disabled={replayDone} aria-label={replayPaused ? "Resume demo" : "Pause demo"}>
                 <span aria-hidden="true">{replayPaused ? "▶" : "Ⅱ"}</span>{replayPaused ? "Resume" : "Pause"}
               </button>
-              <div className="speed-control" aria-label="Sample replay speed">
+              <div className="speed-control" aria-label="Playback speed">
                 {[1, 2].map((speed) => <button key={speed} type="button" onClick={() => setReplaySpeed(speed)} aria-pressed={replaySpeed === speed}>{speed}×</button>)}
               </div>
             </div> : null}
@@ -821,16 +824,16 @@ export default function RunRoom({ runId, preview }) {
         </div>
         {unseen ? <button className="jump" onClick={jumpToLatest}>{unseen} new, jump to latest</button> : null}
         {error ? <p className="notice bad" role="alert">{error}</p> : null}
-        <div className="composer">
+        {run && run.simulated ? null : <div className="composer">
           <textarea
             value={draft} onChange={(e) => setDraft(e.target.value)} rows={2}
-            disabled={!canAct || (run && run.simulated)}
-            placeholder={run && run.simulated ? "This is a replay, so the team cannot answer." : canAct ? "Add a new report or an instruction. It goes to the incident lead as new evidence." : "Viewers can watch but not post."}
+            disabled={!canAct}
+            placeholder={canAct ? "Add a new report or an instruction. It goes to the incident lead as new evidence." : "Viewers can watch but not post."}
             onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendDraft(); }}
             aria-label="Message to the team"
           />
-          <button className="btn primary" onClick={sendDraft} disabled={sending || !draft.trim() || !canAct || (run && run.simulated)}>Send to the team</button>
-        </div>
+          <button className="btn primary" onClick={sendDraft} disabled={sending || !draft.trim() || !canAct}>Send to the team</button>
+        </div>}
       </section>
 
       <aside className="ledger" aria-label="Evidence ledger">
@@ -856,20 +859,20 @@ export default function RunRoom({ runId, preview }) {
                 <figcaption><span className="conn live">Live</span> {who(liveBrowser.from).label}, {liveBrowser.env}{liveBrowser.experiment ? `, ${liveBrowser.experiment}` : ""}. View only.</figcaption>
               </figure>
             ) : (
-              <div className="browser-empty"><span aria-hidden="true">◉</span><strong>{run && run.simulated ? "Sample browser history" : state.browsers.length ? "No live browser session" : "No browser sessions yet"}</strong><p>{run && run.simulated ? "These fixture entries are illustrative and are not live browser sessions." : state.browsers.length ? "Finished sessions appear below with their recordings." : "Execution and verification browser sessions will appear here when opened."}</p></div>
+              <div className="browser-empty"><span aria-hidden="true">◉</span><strong>{run && run.simulated ? "Demo browser view" : state.browsers.length ? "No live browser session" : "No browser sessions yet"}</strong><p>{run && run.simulated ? "Recorded browser events from this demo." : state.browsers.length ? "Finished sessions appear below with their recordings." : "Execution and verification browser sessions will appear here when opened."}</p></div>
             )}
             <ul className="records">
               {state.browsers.map((b) => (
                 <li key={b.session_id} className={`record ${watch === b.session_id ? "focused" : ""}`}>
                   <header>
                     <code>{b.experiment || "session"}{b.run ? ` run ${b.run}` : ""}</code>
-                    <Pill value={run && run.simulated ? "sample" : b.status === "open" ? "running" : b.status === "failed" ? "infra_failure" : "closed"} />
+                    {run && run.simulated ? null : <Pill value={b.status === "open" ? "running" : b.status === "failed" ? "infra_failure" : "closed"} />}
                     <span className="by">{who(b.from).label}</span>
                   </header>
                   <p>{b.env}</p>
                   <dl>
                     <Field label="Setup">{b.env_detail}</Field>
-                    <Field label="Where">{run && run.simulated ? `Sample fixture · ${b.provider === "local" ? "local browser" : "cloud browser"}` : b.provider === "local" ? "Local Playwright" : "Browserbase cloud"}</Field>
+                    <Field label="Where">{run && run.simulated ? "Demo browser view" : b.provider === "local" ? "Local Playwright" : "Browserbase cloud"}</Field>
                     <Field label="Target">{b.target}</Field>
                     <Field label="Observed">{b.outcome}</Field>
                     <Field label="Recording">{b.replay_url ? <a href={b.replay_url} target="_blank" rel="noreferrer">Open session recording</a> : null}</Field>

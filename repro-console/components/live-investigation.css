@@ -269,3 +269,9 @@
   .slide-forward, .slide-backward { animation: none; }
   .live-investigation *, .live-investigation *::before, .live-investigation *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+.live-investigation .live-agent-tabs {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.live-investigation .live-agent-tabs::-webkit-scrollbar { display: none; }

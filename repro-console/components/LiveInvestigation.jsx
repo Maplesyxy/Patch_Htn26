@@ -523,7 +523,7 @@ export default function LiveInvestigation({
         <div className="live-cockpit-title">
           <span className="live-cockpit-icon"><PatchIcon name="activity" size={17} /></span>
           <span><small>LIVE INVESTIGATION</small><h2>{run.title || "Untitled investigation"}</h2></span>
-          {run.simulated ? <span className="live-simulated-label">Simulated replay · no agents running</span> : null}
+          {run.simulated ? <span className="live-simulated-label">Demo</span> : null}
         </div>
         <div className="live-cockpit-actions">
           <span className={"live-stream-status is-" + connectionTone}><i />{connectionLabel}</span>

@@ -55,40 +55,37 @@ function BrowserScene({ experiments }) {
   const lost = matrix.find((row) => /drop|lost/i.test(row.fault || "") && Number(row.failed) > 0);
   const confirmsDuplicate = experiment?.outcome === "supports" && lost;
   return <div className="replay-browser-stage">
-    <div className="replay-browser-window" aria-label="Illustrated browser view. This is a sample, not a live browser session.">
+    <div className="replay-browser-window" role="group" aria-label="Demo browser view">
       <div className="replay-browser-chrome">
         <span className="replay-window-dots"><i /><i /><i /></span>
-        <span className="replay-address"><span aria-hidden="true">◉</span> sample fixture · booking app</span>
-        <span className="replay-browser-tag">ILLUSTRATION</span>
+        <span className="replay-address"><span aria-hidden="true">◉</span> booking app</span>
       </div>
       <div className="replay-booking-scene">
         <div className="replay-booking-copy">
           <span className="replay-scene-kicker">Reservation flow</span>
           <strong>Book once</strong>
-          <small>Sample UI · no page is connected</small>
         </div>
         <span className="replay-booking-button">Book a table <i aria-hidden="true">↗</i></span>
-        {confirmsDuplicate ? <div className="replay-reservation-stack" aria-label="The fixture experiment observed duplicate reservations after a lost response">
-          <span>Reservation A · recorded outcome</span>
-          <span>Reservation B · recorded outcome</span>
-        </div> : <div className="replay-booking-note">Waiting for the experiment result in this replay</div>}
+        {confirmsDuplicate ? <div className="replay-reservation-stack" aria-label="Recorded duplicate reservations after a lost response">
+          <span>Reservation A</span>
+          <span>Reservation B</span>
+        </div> : <div className="replay-booking-note">Awaiting experiment result</div>}
       </div>
     </div>
     <div className="replay-experiment-summary">
       <span className="replay-source-tag">{experiment ? experiment.id : "Browser experiment"}</span>
       {experiment ? <>
         <span className={experiment.outcome === "supports" ? "replay-result supports" : "replay-result"}>{experiment.outcome || "in progress"}</span>
-        <p>{experiment.observed || experiment.expected_if_true || "The sample replay has not recorded an observation yet."}</p>
+        <p>{experiment.observed || experiment.expected_if_true || "No observation recorded yet."}</p>
         {clean ? <small>Clean control: {clean.failed}/{clean.runs} failed</small> : null}
         {lost ? <small>Lost-response run: {lost.failed}/{lost.runs} failed · {lost.env}</small> : null}
       </> : <p>No experiment has been recorded in this phase yet.</p>}
-      <span className="replay-illustration-disclaimer">Illustrated browser · sample replay only</span>
     </div>
   </div>;
 }
 
 function ImplementationScene({ patches }) {
-  if (!patches.length) return <EmptyScene>Waiting for implementation activity. No code changes are illustrated before a patch record exists.</EmptyScene>;
+  if (!patches.length) return <EmptyScene>Waiting for implementation activity.</EmptyScene>;
   return <div className="replay-patch-list">
     {patches.map((patch) => <article className="replay-patch-card" key={patch.id}>
       <header><span className="replay-item-id">{patch.id}</span><code>{patch.branch || "Recorded patch"}</code></header>
@@ -102,7 +99,7 @@ function ImplementationScene({ patches }) {
 }
 
 function VerificationScene({ verdicts }) {
-  if (!verdicts.length) return <EmptyScene>Waiting for a verification verdict. No test result is assumed.</EmptyScene>;
+  if (!verdicts.length) return <EmptyScene>Waiting for a verification verdict.</EmptyScene>;
   return <div className="replay-verdict-list">
     {verdicts.map((verdict) => <article className={`replay-verdict ${verdict.result || "pending"}`} key={verdict.id}>
       <header><span className="replay-item-id">{verdict.id}{verdict.patch ? ` · ${verdict.patch}` : ""}</span><strong>{verdict.result || "Pending"}</strong></header>
@@ -143,10 +140,9 @@ export default function ReplayStage({ phase, events, ledger }) {
   else if (phase === "S4") scene = <VerificationScene verdicts={verdicts} />;
   else scene = <ReleaseScene events={events} />;
 
-  return <section className="replay-stage" aria-label={`${TITLES[phase] || "Investigation"} sample illustration`}>
+  return <section className="replay-stage" aria-label={`${TITLES[phase] || "Investigation"} overview`}>
     <div className="replay-stage-heading">
       <div><span className="replay-stage-mark" aria-hidden="true">✳</span><strong>{TITLES[phase] || "Investigation"}</strong></div>
-      <span className="replay-sample-label">Sample replay · illustration only</span>
     </div>
     <div className="replay-stage-content">{scene}</div>
   </section>;
