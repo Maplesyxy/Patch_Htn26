@@ -346,7 +346,7 @@ export default function CustomerIntake({ open, onClose }) {
             </div>
           </div>
           <div className="intake-header-actions">
-            <span className={`intake-model ${provider?.configured ? "ready" : ""}`}>
+            <span className={`intake-model ${provider?.configured ? "ready" : loadingProvider ? "checking" : ""}`}>
               <span className="intake-status-dot" />
               {loadingProvider ? "Checking Gemini" : provider?.configured ? modelLabel(provider.model) : "Gemini setup needed"}
             </span>
@@ -389,7 +389,12 @@ export default function CustomerIntake({ open, onClose }) {
               </article>
             ) : null}
             {busy ? <div className="intake-thinking" role="status"><span /><span /><span /> Gemini is gathering the details</div> : null}
-            {loadingProvider ? <div className="intake-config-card" role="status">Checking the Gemini connection…</div> : null}
+            {loadingProvider ? (
+              <div className="intake-provider-checking" role="status">
+                <span className="intake-checking-skeleton" aria-hidden="true"><i /><i /><i /></span>
+                <span>Checking the Gemini connection…</span>
+              </div>
+            ) : null}
             {!loadingProvider && !provider?.configured && !provider?.error ? (
               <div className="intake-config-card"><strong>Gemini is not connected yet.</strong><p>Add <code>GEMINI_API_KEY</code> to <code>.env.local</code> and restart Patch to enable customer intake.</p></div>
             ) : null}
@@ -410,11 +415,13 @@ export default function CustomerIntake({ open, onClose }) {
               </button>
             ) : null}
           </div>
-          <section className="intake-live-launch" aria-labelledby="intake-live-title">
-            <div className="intake-live-heading">
-              <div><h3 id="intake-live-title">Start a live investigation</h3><p>Run the reproduction team against the customer’s app.</p></div>
+          <details className="intake-live-launch">
+            <summary className="intake-live-summary" aria-controls="intake-live-options">
+              <span className="intake-live-summary-copy"><strong>Run reproduction</strong><small>Start a live browser run against the target app.</small></span>
               {runtimeReady ? <span className="intake-live-ready">Ready</span> : <span className="intake-live-waiting">Setup needed</span>}
-            </div>
+              <span className="intake-live-chevron" aria-hidden="true" />
+            </summary>
+            <div className="intake-live-body" id="intake-live-options">
             <div className="intake-live-fields">
               <label htmlFor="intake-target-url">
                 <span>Target app URL</span>
@@ -454,7 +461,8 @@ export default function CustomerIntake({ open, onClose }) {
               {launching ? <><span className="intake-spinner" aria-hidden="true" /> Starting live investigation…</> : "Start live investigation"}
             </button>
             {launchError ? <div className="intake-error intake-launch-error" role="alert"><p>{launchError}</p></div> : null}
-          </section>
+            </div>
+          </details>
           <form className="intake-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
             <label className="sr-only" htmlFor="intake-message">Describe the issue</label>
             <textarea
@@ -464,14 +472,14 @@ export default function CustomerIntake({ open, onClose }) {
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }}
               placeholder={messages.length >= 16 ? "Start a new intake to continue" : canSend ? "Describe what happened…" : "Gemini intake is unavailable"}
-              rows={3}
+              rows={2}
               maxLength={2000}
               disabled={!canSend || busy || messages.length >= 16}
               aria-describedby="intake-composer-help"
             />
             <div className="intake-composer-foot">
-              <span id="intake-composer-help">Please leave out passwords, payment details, and private account information.</span>
-              <button className="intake-send" type="submit" disabled={!canSend || busy || messages.length >= 16 || !draft.trim()} aria-label="Send message">
+              <span id="intake-composer-help">Avoid passwords and private account details.</span>
+              <button className="intake-send" type="submit" disabled={!canSend || busy || messages.length >= 16 || !draft.trim()} aria-label={busy ? "Sending message" : "Send message"}>
                 {busy ? <span className="intake-spinner" aria-hidden="true" /> : <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 10h12m-5-5 5 5-5 5" /></svg>}
               </button>
             </div>

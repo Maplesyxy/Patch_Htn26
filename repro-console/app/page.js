@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CustomerIntake from "@/components/CustomerIntake";
+import HeroIntro from "@/components/HeroIntro";
 import PatchIcon from "@/components/PatchIcon";
 import PatchShell from "@/components/PatchShell";
 import { STAGES } from "@/lib/agents";
 
-const VIEWS = ["overview", "investigations", "agents", "settings"];
+const VIEWS = ["overview", "investigations", "agents", "about", "settings"];
 const FILTERS = [
   ["all", "All"],
   ["in_progress", "In progress"],
@@ -23,6 +24,15 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Date unavailable";
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function runOutcome(status, run) {
+  if (run && run.simulated && Number(run.demoIndex) >= 64) return { label: "Replay complete", className: "complete", terminal: true };
+  if (status === "finished") return { label: "Completed", className: "complete", terminal: true };
+  if (status === "blocked") return { label: "Blocked", className: "blocked", terminal: true };
+  if (status === "cancelled" || status === "canceled" || status === "stopped") return { label: "Stopped", className: "stopped", terminal: true };
+  if (status === "dispatch_unknown") return { label: "Dispatch uncertain", className: "blocked", terminal: false };
+  return { label: "In progress", className: "progress", terminal: false };
 }
 
 function viewFromLocation() {
@@ -191,9 +201,9 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
     return (runs || []).filter((run) => {
-      const complete = run.status === "finished";
-      if (filter === "completed" && !complete) return false;
-      if (filter === "in_progress" && complete) return false;
+      const outcome = runOutcome(run.status, run);
+      if (filter === "completed" && !outcome.terminal) return false;
+      if (filter === "in_progress" && outcome.terminal) return false;
       return !term || [run.title, run.workspace, run.stage, run.id].some((value) => String(value || "").toLowerCase().includes(term));
     });
   }, [runs, filter, search]);
@@ -241,7 +251,7 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
           <thead><tr><th scope="col">Investigation</th><th scope="col">Stage</th><th scope="col">Status</th><th scope="col">Activity</th><th scope="col">Created</th><th scope="col"><span className="patch-sr-only">Open</span></th></tr></thead>
           <tbody>
             {visible.map((run) => {
-              const complete = run.status === "finished";
+              const outcome = runOutcome(run.status, run);
               return (
                 <tr key={run.id}>
                   <td>
@@ -249,7 +259,7 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
                     <span className="patch-run-subtitle">{run.simulated ? <span className="patch-simulated-tag"><i />Simulated</span> : null}<span>{run.workspace || "Workspace"} · {run.id}</span></span>
                   </td>
                   <td><span className="patch-stage-value"><span>{run.stage || "S0"}</span>{stageName(run.stage)}</span></td>
-                  <td><span className={"patch-status " + (complete ? "patch-status-complete" : "patch-status-progress")}><i />{complete ? "Completed" : "In progress"}</span></td>
+                  <td><span className={"patch-status patch-status-" + outcome.className}><i />{outcome.label}</span></td>
                   <td className="patch-event-count">{run.eventCount || 0} events</td>
                   <td className="patch-date">{formatDate(run.createdAt)}</td>
                   <td><a className="patch-open-run" href={"/runs/" + encodeURIComponent(run.id)} aria-label={"Open " + (run.title || "investigation")}><PatchIcon name="arrowRight" size={15} /></a></td>
@@ -270,7 +280,7 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
           <div className="patch-table-empty">
             <span className="patch-empty-icon"><PatchIcon name={runs && runs.length ? "search" : "inbox"} size={18} /></span>
             <strong>{runs && runs.length ? "No matching investigations." : "Your first investigation starts here."}</strong>
-            <span>{runs && runs.length ? "Try a different search or status filter." : "Report a bug or explore the sample above."}</span>
+            <span>{runs && runs.length ? "Try a different search or status filter." : "Report a bug or watch a demo to see how it works."}</span>
           </div>
         ) : null}
       </div>
@@ -282,18 +292,31 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
   );
 }
 
-function Overview({ runs, loading, onStart, starting, filter, onFilter, search, onSearch, error }) {
+function JourneyStrip() {
+  const steps = [
+    ["inbox", "01", "Bring the report", "Start with what the customer saw."],
+    ["swarm", "02", "Reproduce together", "Compare independent experiments."],
+    ["verified", "03", "Prove the fix", "Check it against the original failure."],
+  ];
+  return (
+    <section className="patch-journey-strip" aria-label="The Patch workflow">
+      {steps.map(([icon, number, title, copy], index) => (
+        <article className="patch-journey-step" key={number}>
+          <span className="patch-journey-icon"><PatchIcon name={icon} size={18} /></span>
+          <span className="patch-journey-copy"><small>{number}</small><strong>{title}</strong><span>{copy}</span></span>
+          {index < steps.length - 1 ? <span className="patch-journey-connector" aria-hidden="true"><PatchIcon name="arrowRight" size={16} /></span> : null}
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function Overview({ runs, loading, onStart, starting, filter, onFilter, search, onSearch, error, onReport }) {
   return (
     <>
-      <ViewHeading eyebrow="Your investigation workspace" title="Good fixes start with proof." action={<button className="patch-button patch-button-primary" type="button" onClick={() => window.dispatchEvent(new CustomEvent("patch:new-report"))}><PatchIcon name="plus" size={16} />New report</button>}>
-        Turn customer reports into reproducible bugs, then fixes you can trust.
-      </ViewHeading>
+      <HeroIntro onReport={onReport} onDemo={onStart} starting={starting} />
       {error ? <div className="patch-inline-error" role="alert"><PatchIcon name="alert" size={16} />{error}</div> : null}
-      <Workflow />
-      <div className="patch-feature-grid">
-        <SampleReplay starting={starting} onStart={onStart} />
-        <EvidenceCard />
-      </div>
+      <JourneyStrip />
       <RunTable runs={runs} loading={loading} filter={filter} onFilter={onFilter} search={search} onSearch={onSearch} />
     </>
   );
@@ -399,6 +422,29 @@ function SettingsView({ me }) {
         <span className="patch-settings-help-icon"><PatchIcon name="book" size={17} /></span>
         <span><strong>Setting up the Repro runtime?</strong><small>Read the deployment guide for ingest tokens, worker setup, and the simulated replay.</small></span>
         <a href="https://github.com/Maplesyxy/Patch_Htn26/blob/main/repro-console/README.md#deploy" target="_blank" rel="noreferrer">Open setup guide <PatchIcon name="arrowUpRight" size={14} /></a>
+      </section>
+    </>
+  );
+}
+
+function AboutView({ onStart, starting }) {
+  return (
+    <>
+      <ViewHeading eyebrow="About Patch" title="A clearer path from report to fix.">
+        Patch turns a customer’s report into a reproducible failure, then carries the evidence forward to a verified handoff.
+      </ViewHeading>
+      <Workflow />
+      <div className="patch-feature-grid patch-about-feature-grid">
+        <SampleReplay starting={starting} onStart={onStart} />
+        <EvidenceCard />
+      </div>
+      <section className="patch-about-details">
+        <div className="patch-about-detail-heading"><span className="patch-about-detail-icon"><PatchIcon name="shield" size={19} /></span><span><small>DESIGNED FOR TRUST</small><h2>Clear responsibilities. Verifiable outcomes.</h2></span></div>
+        <div className="patch-about-detail-grid">
+          <article><span>01</span><h3>Independent investigation</h3><p>Execution, supervision, and incident analysis keep distinct roles while sharing one evidence trail.</p></article>
+          <article><span>02</span><h3>Scoped implementation</h3><p>The included app adapter can propose a patch only inside the local workspace configured for it.</p></article>
+          <article><span>03</span><h3>Human release decision</h3><p>Checks record what happened; a person remains responsible for approving release.</p></article>
+        </div>
       </section>
     </>
   );
@@ -513,22 +559,23 @@ export default function Home() {
     }
   }
 
-  const titles = { overview: "Overview", investigations: "Investigations", agents: "Agent ensemble", settings: "Runtime settings" };
+  const titles = { overview: "Overview", investigations: "Investigations", agents: "Agent ensemble", about: "About Patch", settings: "Runtime settings" };
   const active = view;
 
   return (
     <>
       <PatchShell active={active} title={titles[view]} onNavigate={navigate} onNewReport={openIntake} me={me} onSignOut={signOut}>
         <div className="patch-main-content">
-          {view === "overview" ? <Overview runs={runs} loading={!runs && !loadError} onStart={startReplay} starting={starting} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch} error={error || loadError} /> : null}
+          {view === "overview" ? <Overview runs={runs} loading={!runs && !loadError} onStart={startReplay} starting={starting} onReport={openIntake} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch} error={error || loadError} /> : null}
           {view === "investigations" ? (
             <>
-              <ViewHeading eyebrow="Your workspace" title="Investigations" action={<button className="patch-button patch-button-primary" type="button" onClick={openIntake}><PatchIcon name="plus" size={16} />New report</button>}>Follow live work, replay a sample, or open an investigation to inspect its evidence.</ViewHeading>
+              <ViewHeading eyebrow="Your workspace" title="Investigations" action={<button className="patch-button patch-button-primary" type="button" onClick={openIntake}><PatchIcon name="plus" size={16} />Report a bug</button>}>Review live work and open an investigation to inspect its evidence.</ViewHeading>
               {error || loadError ? <div className="patch-inline-error" role="alert"><PatchIcon name="alert" size={16} />{error || loadError}</div> : null}
               <RunTable runs={runs} loading={!runs && !loadError} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch} expanded />
             </>
           ) : null}
           {view === "agents" ? <AgentsView /> : null}
+          {view === "about" ? <AboutView onStart={startReplay} starting={starting} /> : null}
           {view === "settings" ? <SettingsView me={me} /> : null}
         </div>
       </PatchShell>

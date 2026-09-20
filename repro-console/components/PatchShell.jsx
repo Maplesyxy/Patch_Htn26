@@ -4,20 +4,21 @@ const PRIMARY_LINKS = [
   ["overview", "Overview", "overview"],
   ["investigations", "Investigations", "activity"],
   ["agents", "Agent ensemble", "swarm"],
+  ["about", "About Patch", "book"],
 ];
 
 export function PatchMark({ size = 32, className = "" }) {
   return (
     <svg className={className} width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <rect width="32" height="32" rx="10" fill="#D9F99B" />
+      <rect width="32" height="32" rx="10" fill="#D8EEF0" />
       <g transform="rotate(-38 16 16)">
-        <rect x="8" y="3.5" width="16" height="25" rx="6" fill="#31432D" />
-        <rect x="11" y="10" width="10" height="12" rx="3" fill="#D9F99B" />
-        <circle cx="10.6" cy="8" r="1" fill="#D9F99B" />
-        <circle cx="21.4" cy="8" r="1" fill="#D9F99B" />
-        <circle cx="10.6" cy="24" r="1" fill="#D9F99B" />
-        <circle cx="21.4" cy="24" r="1" fill="#D9F99B" />
-        <path d="M13.6 13.5h4.8M13.6 16h4.8M13.6 18.5h4.8" stroke="#738967" strokeWidth="1.2" strokeLinecap="round" />
+        <rect x="8" y="3.5" width="16" height="25" rx="6" fill="#173E43" />
+        <rect x="11" y="10" width="10" height="12" rx="3" fill="#D8EEF0" />
+        <circle cx="10.6" cy="8" r="1" fill="#D8EEF0" />
+        <circle cx="21.4" cy="8" r="1" fill="#D8EEF0" />
+        <circle cx="10.6" cy="24" r="1" fill="#D8EEF0" />
+        <circle cx="21.4" cy="24" r="1" fill="#D8EEF0" />
+        <path d="M13.6 13.5h4.8M13.6 16h4.8M13.6 18.5h4.8" stroke="#246F78" strokeWidth="1.2" strokeLinecap="round" />
       </g>
     </svg>
   );
@@ -74,7 +75,7 @@ export default function PatchShell({ children, active = "overview", title = "Ove
           <span className="patch-workspace-mark"><span>H</span></span>
           <span className="patch-workspace-label"><strong>Hack the North</strong><small>Workspace</small></span>
         </div>
-        {onNewReport ? <button type="button" className="patch-sidebar-report" onClick={onNewReport}><PatchIcon name="plus" size={16} /><span>New report</span></button> : null}
+        {onNewReport ? <button type="button" className="patch-sidebar-report" onClick={onNewReport}><PatchIcon name="plus" size={16} /><span>Report a bug</span></button> : null}
         <nav className="patch-sidebar-nav" aria-label="Workspace navigation">
           <span className="patch-nav-caption">Workspace</span>
           {PRIMARY_LINKS.map(([name, label, icon]) => (
@@ -87,7 +88,7 @@ export default function PatchShell({ children, active = "overview", title = "Ove
           </a>
         </nav>
         <div className="patch-sidebar-spacer" />
-        <div className="patch-season-badge"><span className="patch-season-mark">H</span><span><strong>Hack the North</strong><small>2026 · Builder workspace</small></span><PatchIcon name="arrowUpRight" size={14} /></div>
+        <div className="patch-season-badge"><span className="patch-season-mark">H</span><span><strong>Hack the North</strong><small>2026 · Builder workspace</small></span></div>
         <div className="patch-user-card">
           <span className="patch-user-avatar">{initials(me && me.name)}</span>
           <span className="patch-user-meta"><strong>{me ? me.name : "Loading workspace"}</strong><small>{me ? me.role : "Checking access"}</small></span>
@@ -112,7 +113,7 @@ export default function PatchShell({ children, active = "overview", title = "Ove
             <NavLink key={name} name={name} label={label} icon={icon} active={active} onNavigate={onNavigate} mobile />
           ))}
           <NavLink name="settings" label="Settings" icon="settings" active={active} onNavigate={onNavigate} mobile />
-          {onNewReport ? <button type="button" className="patch-mobile-report" onClick={onNewReport}><PatchIcon name="plus" size={14} /><span>Report</span></button> : null}
+          {onNewReport ? <button type="button" className="patch-mobile-report" onClick={onNewReport}><PatchIcon name="plus" size={14} /><span>Report a bug</span></button> : null}
         </nav>
         <main className="patch-main">
           {children}
