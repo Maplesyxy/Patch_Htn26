@@ -15,6 +15,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from probes import STRATEGIES, ProbeError, run_probes
 from registry import TOOLS
 
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
@@ -267,6 +268,35 @@ class ToolBox:
         self.t_write_ledger(agent, {"record": "experiment", "id": exp_id, "value": record})
         result["ledger_record_written"] = exp_id
         return result
+
+    def t_list_strategies(self, agent, args):
+        return {"strategies": [{"name": k, "description": d} for k, (_fn, d) in STRATEGIES.items()],
+                "note": "run_probes races up to three of these at once. Each gets its own account."}
+
+    def t_run_probes(self, agent, args):
+        """Fork the execution agent: race several reproduction strategies at once."""
+        names = args.get("strategies") or []
+        if not names:
+            raise NotAllowed("run_probes needs at least two strategies. Call list_strategies first.")
+        if len(names) > 3:
+            raise NotAllowed("Race at most three at a time; more of them contend for the sandbox.")
+        self._report(agent, "swarm", f"forking {len(names)} probes: {', '.join(names)}", "start")
+
+        def on_event(name, status, summary):
+            self._report(agent, f"probe:{name}", summary, status)
+
+        try:
+            out = run_probes(self.target, self.admin, names,
+                             restaurant=args.get("restaurant") or "nori",
+                             date=args.get("date") or "2026-11-14",
+                             slot=args.get("slot") or "19:00",
+                             on_event=on_event)
+        except ProbeError as e:
+            raise BlockedInfra(str(e)) from None
+        won = out["winner"]["strategy"] if out["winner"] else "none"
+        self._report(agent, "swarm", f"{len(out['reproduced_by'])} of {out['strategies_run']} reproduced; "
+                                     f"fastest was {won}", "ok")
+        return out
 
     # -- S3-S5, Task 6 ------------------------------------------------------------------
     def t_read_repo(self, agent, args):

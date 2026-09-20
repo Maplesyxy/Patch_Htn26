@@ -77,6 +77,18 @@ _S = {
       "date": {"type": "string", "description": "YYYY-MM-DD, defaults to 2026-10-03."}},
       ["experiment_id", "environments", "expected_if_true"]),
 
+  "list_strategies": ("The reproduction strategies you can race against each other, and what each "
+                      "kind of defect it is shaped for.", {}, []),
+
+  "run_probes": ("Fork yourself: race 2-3 reproduction strategies concurrently, each on its own "
+                 "account, and return which reproduced the failure and which ruled a theory out. "
+                 "Use this when you do not yet know WHICH KIND of experiment will surface the bug. "
+                 "run_matrix answers 'website or browser'; this answers 'what makes it happen'.", {
+      "strategies": {"type": "array", "items": {"type": "string"},
+                     "description": "2 to 3 names from list_strategies."},
+      "restaurant": {"type": "string"}, "date": {"type": "string"}, "slot": {"type": "string"}},
+      ["strategies"]),
+
   "read_repo": ("Read source files. (Task 6)", {"path": {"type": "string"}}, []),
   "run_tests": ("Run a test suite. (Task 6)", {"suite": {"type": "string"}}, []),
 }

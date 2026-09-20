@@ -5,6 +5,7 @@ import CustomerIntake from "@/components/CustomerIntake";
 import PatchIcon from "@/components/PatchIcon";
 import EnsembleDiagram from "@/components/EnsembleDiagram";
 import AgentEnsemble from "@/components/AgentEnsemble";
+import CodeReview from "@/components/CodeReview";
 import PatchShell from "@/components/PatchShell";
 import { STAGES } from "@/lib/agents";
 
@@ -296,9 +297,17 @@ export default function Home() {
   const [starting, setStarting] = useState(false);
   const [view, setView] = useState("overview");
   const [intakeOpen, setIntakeOpen] = useState(false);
+  const [review, setReview] = useState({ open: false, runId: null });
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [loadError, setLoadError] = useState("");
+
+  const openCodeReview = useCallback(() => {
+    // Open regardless: a reviewer clicking this deserves an answer, even when the
+    // answer is that no patch exists yet.
+    const real = (runs || []).filter((r) => !r.simulated);
+    setReview({ open: true, runId: (real[0] || (runs || [])[0] || {}).id || null });
+  }, [runs]);
 
   const navigate = useCallback((next) => {
     const safeView = VIEWS.includes(next) ? next : "overview";
@@ -403,7 +412,7 @@ export default function Home() {
 
   return (
     <>
-      <PatchShell active={active} title={titles[view]} onNavigate={navigate} onNewReport={openIntake} me={me} onSignOut={signOut}>
+      <PatchShell active={active} title={titles[view]} onNavigate={navigate} onNewReport={openIntake} onCodeReview={openCodeReview} me={me} onSignOut={signOut}>
         <div className="patch-main-content">
           {view === "overview" ? <Overview runs={runs} loading={!runs && !loadError} onStart={startReplay} starting={starting} filter={filter} onFilter={setFilter} search={search} onSearch={setSearch} error={error || loadError} /> : null}
           {view === "investigations" ? (
@@ -418,6 +427,7 @@ export default function Home() {
         </div>
       </PatchShell>
       <CustomerIntake open={intakeOpen} onClose={closeIntake} />
+      <CodeReview runId={review.runId} open={review.open} onClose={() => setReview({ open: false, runId: null })} />
     </>
   );
 }

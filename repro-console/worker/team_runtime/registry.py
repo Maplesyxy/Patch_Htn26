@@ -36,10 +36,12 @@ TOOLS = {
     "support-engineer":  EVERY_AGENT + ["read_tickets", "lookup_account"],
     "sre-analyst":       EVERY_AGENT + ["query_requests", "query_reservations", "query_emails", "deploy_history"],
     "incident-lead":     EVERY_AGENT + ["set_stage", "poll_human"],
-    "qa-engineer":       EVERY_AGENT + ["reset_sandbox", "list_environments", "run_matrix", "query_reservations"],
+    "qa-engineer":       EVERY_AGENT + ["reset_sandbox", "list_environments", "run_matrix",
+                                        "list_strategies", "run_probes", "query_reservations"],
     # S3-S5. Wired in Task 6; listed here so the permission table is complete in one place.
     "software-engineer": EVERY_AGENT + ["read_repo", "run_tests"],
-    "release-verifier":  EVERY_AGENT + ["read_repo", "run_tests", "list_environments", "run_matrix"],
+    "release-verifier":  EVERY_AGENT + ["read_repo", "run_tests", "list_environments", "run_matrix",
+                                        "list_strategies", "run_probes"],
 }
 
 

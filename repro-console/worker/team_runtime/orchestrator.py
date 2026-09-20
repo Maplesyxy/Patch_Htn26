@@ -231,6 +231,18 @@ per hypothesis to qa-engineer."""
 REPRODUCE = """S2 REPRODUCE. Read the ledger for the hypotheses and the experiment requests
 addressed to you.
 
+You have two different instruments, and picking the wrong one wastes the round:
+
+  run_probes  forks you into 2-3 clones that race different KINDS of experiment at once,
+              each on its own account and sitting. Use it first when you do not yet know
+              what makes the failure appear. A strategy that does not reproduce is still
+              a result: it rules a theory out for everyone.
+  run_matrix  answers one question only, "is it the website or the customer's browser",
+              by running fixed steps across browser engines and network conditions.
+
+Start with list_strategies and race the two or three that match the competing hypotheses.
+Then, if the answer turns on environment, follow up with a matrix.
+
 Design one matrix that splits the most hypotheses at once. Call list_environments first.
 Include a negative control: a clean browser on a clean network must produce exactly one
 reservation, or your experiment is not measuring what you think. Reset the sandbox, run at
