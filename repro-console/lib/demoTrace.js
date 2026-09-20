@@ -82,7 +82,7 @@ export const DEMO_TRACE = [
   { delay: 500, event: l("incident-lead", "incident", "INC-1", { status: "fix_verified" }) },
   { delay: 400, event: l("incident-lead", "incident", "INC-2", { status: "insufficient_evidence", needs: ["email provider message IDs for T-14"] }) },
   { delay: 700, event: s("S5", "Verdict VER-2 is verified", ["VER-2"]) },
-  { delay: 900, event: { kind: "approval", from: "software-engineer", data: { id: "APR-1", title: "Open draft pull request for PATCH-2", detail: "fix/inc-1-idempotent-booking into main. 3 files, +64 -9. Links INC-1, HYP-3, EXP-3, VER-2. States: fix proposed, not deployed.", refs: ["PATCH-2", "VER-2"] } } },
+  { delay: 900, event: { kind: "approval", from: "software-engineer", data: { id: "APR-1", title: "Open draft pull request for PATCH-2", detail: "fix/inc-1-idempotent-booking into main. 3 files, +75 -1. Links INC-1, HYP-3, EXP-3, VER-2. States: fix proposed, not deployed.", refs: ["PATCH-2", "VER-2"] } } },
   { delay: 900, event: { kind: "approval", from: "support-engineer", data: { id: "APR-2", title: "Send 8 customer replies", detail: "6 tickets: 'We reproduced this and a fix is in review.' T-11: asks for booking time and device. T-14: explains one reservation exists, asks for the second email's headers.", refs: ["INC-1", "INC-2"] } } },
   { delay: 600, event: m("incident-lead", ["human"], "APPROVAL_REQUEST", ["APR-1", "APR-2", "INC-1"], "Investigation complete. Two actions are waiting for you. Nothing has been merged, deployed or sent.") },
 ];

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import PatchIcon from "./PatchIcon";
 import { diffTotals, parseDiff } from "@/lib/diff";
+import { SAMPLE_PATCH, SAMPLE_PATCH_BRANCH } from "@/lib/samplePatch";
 import "./code-review.css";
 
 const statusLabel = { added: "added", deleted: "deleted", renamed: "renamed", modified: "changed" };
@@ -39,6 +40,7 @@ function FileDiff({ file }) {
 export default function CodeReview({ runId, open, onClose }) {
   const [raw, setRaw] = useState("");
   const [state, setState] = useState("idle");
+  const [isSample, setIsSample] = useState(false);
   const [error, setError] = useState("");
   const [active, setActive] = useState(0);
 
@@ -46,14 +48,21 @@ export default function CodeReview({ runId, open, onClose }) {
     if (!open) return;
     if (!runId) { setState("norun"); return; }
     let cancelled = false;
-    setState("loading"); setError(""); setRaw("");
+    setState("loading"); setError(""); setRaw(""); setIsSample(false);
     fetch(`/api/runs/${encodeURIComponent(runId)}/artifacts/patch.diff`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(r.status === 404 ? "No patch has been produced for this investigation yet." : "The runtime could not return the patch.");
-        return r.text();
-      })
-      .then((t) => { if (!cancelled) { setRaw(t); setState("ready"); setActive(0); } })
-      .catch((e) => { if (!cancelled) { setError(e.message); setState("error"); } });
+      .then(async (r) => (r.ok ? { text: await r.text(), real: true } : { text: "", real: false }))
+      .catch(() => ({ text: "", real: false }))
+      .then(({ text, real }) => {
+        if (cancelled) return;
+        // No live worker, or no patch for this run: fall back to the sample so the
+        // review surface can still be shown. It is banner-labelled, never passed off
+        // as this investigation's real output.
+        const usable = real && text.trim();
+        setRaw(usable ? text : SAMPLE_PATCH);
+        setIsSample(!usable);
+        setState("ready");
+        setActive(0);
+      });
     return () => { cancelled = true; };
   }, [open, runId]);
 
@@ -106,6 +115,16 @@ export default function CodeReview({ runId, open, onClose }) {
           <p className="cr-empty">The patch is empty. Nothing was changed.</p>
         ) : null}
 
+        {state === "ready" && isSample ? (
+          <p className="cr-sample" role="status">
+            <PatchIcon name="alert" size={14} />
+            <span>
+              <strong>Sample patch.</strong> The runtime has no <code>patch.diff</code> for this
+              investigation, so this shows the fix the sample replay describes
+              (<code>{SAMPLE_PATCH_BRANCH}</code>). It is not this run&rsquo;s output.
+            </span>
+          </p>
+        ) : null}
         {state === "ready" && files.length ? (
           <div className="cr-body">
             <nav className="cr-files" aria-label="Files changed">
