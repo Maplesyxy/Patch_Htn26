@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AGENTS, AGENT_GROUPS, HUMAN, STAGES, PUSHBACK_TYPES, recordTypeForRef } from "@/lib/agents";
 import { reduceEvents } from "@/lib/reduce";
 import PatchShell from "./PatchShell";
+import LiveInvestigation from "./LiveInvestigation";
 import "./room.css";
 
 const RECORD_TABS = [
@@ -276,10 +277,16 @@ export default function RunRoom({ runId, preview }) {
   const [sending, setSending] = useState(false);
   const [unseen, setUnseen] = useState(0);
   const [watch, setWatch] = useState(null); // browser session pinned by the reader
+  const [selectedPhase, setSelectedPhase] = useState("S0");
+  const [followLive, setFollowLive] = useState(true);
+  const [phaseDirection, setPhaseDirection] = useState("forward");
+  const [stopBusy, setStopBusy] = useState(false);
+  const [stopError, setStopError] = useState("");
 
   const lastSeq = useRef(0);
   const feedRef = useRef(null);
   const stick = useRef(true);
+  const previousStage = useRef(null);
 
   // who am I + initial load + live stream
   useEffect(() => {
@@ -335,6 +342,38 @@ export default function RunRoom({ runId, preview }) {
   }, [run && run.id, me && me.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const state = useMemo(() => reduceEvents(events), [events]);
+  const phaseEventRows = useMemo(() => {
+    let currentStage = "S0";
+    return events.map((event) => {
+      if (event.kind === "stage" && event.data && event.data.stage) currentStage = event.data.stage;
+      return {
+        event,
+        phase: event.kind === "activity" && event.data && event.data.phase ? event.data.phase : currentStage,
+      };
+    });
+  }, [events]);
+  const selectedPhaseEvents = useMemo(
+    () => phaseEventRows.filter((row) => row.phase === selectedPhase).map((row) => row.event),
+    [phaseEventRows, selectedPhase],
+  );
+  const liveRun = !!(run && run.mode === "live" && !run.simulated);
+  const currentStage = state.stage || (run && run.stage) || "S0";
+  const lifecycleEvent = [...events].reverse().find((event) => event.kind === "system" && ["RUN_FINISHED", "RUN_BLOCKED", "RUN_CANCELLED"].includes(event.type));
+  const runTerminal = state.finished || ["finished", "blocked", "cancelled", "canceled"].includes(run && run.status) || !!lifecycleEvent;
+
+  useEffect(() => {
+    const next = currentStage;
+    const previous = previousStage.current;
+    const nextIndex = STAGES.findIndex((stage) => stage.id === next);
+    const previousIndex = STAGES.findIndex((stage) => stage.id === previous);
+    if (previous !== null && next !== previous && nextIndex >= 0 && previousIndex >= 0 && followLive) {
+      setPhaseDirection(nextIndex < previousIndex ? "backward" : "forward");
+      setSelectedPhase(next);
+    } else if (previous === null && next) {
+      setSelectedPhase(next);
+    }
+    previousStage.current = next;
+  }, [currentStage, followLive]);
 
   const visible = useMemo(() => events.filter((e) => {
     if (!showActivity && (e.kind === "tool" || e.kind === "ledger")) return false;
@@ -418,6 +457,43 @@ export default function RunRoom({ runId, preview }) {
     { title: "Implementation & review", range: "S3–S5" },
   ];
 
+  function selectPhase(phase) {
+    const previousIndex = STAGES.findIndex((stage) => stage.id === selectedPhase);
+    const nextIndex = STAGES.findIndex((stage) => stage.id === phase);
+    setPhaseDirection(nextIndex < previousIndex ? "backward" : "forward");
+    setSelectedPhase(phase);
+    setFollowLive(false);
+  }
+
+  function resumeFollowing() {
+    const previousIndex = STAGES.findIndex((stage) => stage.id === selectedPhase);
+    const currentIndex = STAGES.findIndex((stage) => stage.id === currentStage);
+    setPhaseDirection(currentIndex < previousIndex ? "backward" : "forward");
+    setSelectedPhase(currentStage);
+    setFollowLive(true);
+  }
+
+  async function stopLiveRun() {
+    if (!liveRun || !canAct || runTerminal || stopBusy) return;
+    setStopBusy(true);
+    setStopError("");
+    try {
+      const response = await fetch("/api/runs/" + runId + "/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop" }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not stop this run.");
+      if (data.run) setRun((previous) => ({ ...previous, ...data.run }));
+      setStopError("");
+    } catch (reason) {
+      setStopError(reason.message || "Could not reach the server. The run was not stopped.");
+    } finally {
+      setStopBusy(false);
+    }
+  }
+
   function focusApproval(id) {
     setAgentFilter(null);
     setFocus(`approval:${id}`);
@@ -429,7 +505,27 @@ export default function RunRoom({ runId, preview }) {
 
   return (
     <PatchShell active="investigations" title="Investigation" onNewReport={() => { window.location.href = "/?intake=1"; }} me={me}>
-    <div className="room">
+    {liveRun ? (
+      <LiveInvestigation
+        run={run}
+        events={events}
+        phaseEvents={selectedPhaseEvents}
+        agents={state.agents}
+        browsers={state.browsers}
+        connection={conn}
+        phase={selectedPhase}
+        currentPhase={currentStage}
+        followLive={followLive}
+        direction={phaseDirection}
+        canStop={!!canAct && !runTerminal}
+        stopBusy={stopBusy}
+        stopError={stopError}
+        onSelectPhase={selectPhase}
+        onFollowLive={resumeFollowing}
+        onStop={stopLiveRun}
+      />
+    ) : null}
+    <div className={"room" + (liveRun ? " room-live" : "")}>
       <header className="room-head">
         <div className="room-heading">
           <a href="/" className="back">← All investigations</a>
@@ -445,7 +541,7 @@ export default function RunRoom({ runId, preview }) {
             <a className="audit-action" href={`/api/runs/${runId}/export`}>Export audit record <span aria-hidden="true">↗</span></a>
           </div>
         </div>
-        <div className="journey-wrap">
+        {!liveRun ? <div className="journey-wrap">
           <ol className="journey" aria-label="Investigation phases">
             {phases.map((phase, i) => {
               const status = i < phaseIndex || (state.finished && i === phaseIndex) ? "complete" : i === phaseIndex ? "current" : "upcoming";
@@ -461,8 +557,8 @@ export default function RunRoom({ runId, preview }) {
             <span><strong>{Object.keys(state.ledger.patch).length}</strong> patches</span>
             <span className={verifiedVerdicts ? "verified-stat" : ""}><strong>{verifiedVerdicts}</strong> verified verdicts</span>
           </div>
-        </div>
-        <ol className="rail" aria-label="Six-stage pipeline">
+        </div> : null}
+        {!liveRun ? <ol className="rail" aria-label="Six-stage pipeline">
           {STAGES.map((s, i) => (
             <li key={s.id} className={i < stageIdx ? "done" : i === stageIdx ? "now" : ""} aria-current={i === stageIdx ? "step" : undefined}>
               <span className="rail-n">{s.id}</span>
@@ -470,7 +566,7 @@ export default function RunRoom({ runId, preview }) {
             </li>
           ))}
           {state.counts.sentBack ? <li className="rail-back">Sent back {state.counts.sentBack} {state.counts.sentBack === 1 ? "time" : "times"}</li> : null}
-        </ol>
+        </ol> : null}
       </header>
 
       <aside className="roster" aria-label="Team">

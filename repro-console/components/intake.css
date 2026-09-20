@@ -102,6 +102,37 @@
 .intake-error button:disabled { opacity: .45; cursor: not-allowed; }
 .intake-saved { width: min(100%, 500px); color: #4b6a3f; font-size: 11.5px; }
 
+.intake-live-launch { flex: none; padding: 12px 27px 14px; display: grid; gap: 9px; border-top: 1px solid #e7e9df; background: #f8faf5; }
+.intake-live-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.intake-live-heading h3 { margin: 0 0 2px; color: #344630; font-size: 12px; font-weight: 650; }
+.intake-live-heading p { color: #8a9184; font-size: 10px; }
+.intake-live-ready, .intake-live-waiting { flex: none; padding: 4px 8px; border-radius: 99px; color: #7f7960; background: #efeee2; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.intake-live-ready { color: #4f6b3d; background: #eaf2e3; }
+.intake-live-fields { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(150px, .8fr); gap: 10px; }
+.intake-live-fields label { min-width: 0; display: grid; gap: 4px; color: #778171; font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.intake-live-fields input, .intake-live-fields select { width: 100%; min-width: 0; height: 34px; padding: 0 9px; border: 1px solid #dfe4d9; border-radius: 8px; color: #334132; background: #fff; font: inherit; font-size: 11px; font-weight: 450; letter-spacing: 0; text-transform: none; }
+.intake-live-fields input::placeholder { color: #a0a79b; }
+.intake-live-fields input[aria-invalid="true"] { border-color: #d9a28e; background: #fffaf8; }
+.intake-live-fields input:focus, .intake-live-fields select:focus { outline: 2px solid #a5b594; outline-offset: 1px; border-color: #829874; }
+.intake-live-fields select:disabled { color: #91988c; background: #f4f5f1; }
+.intake-runtime-status { min-width: 0; display: flex; align-items: center; gap: 7px; color: #888f82; }
+.intake-runtime-status p { min-width: 0; flex: 1; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+.intake-runtime-status.ready { color: #5a7449; }
+.intake-runtime-dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: #adb2a7; }
+.intake-runtime-status.ready .intake-runtime-dot { background: #7b9c5c; box-shadow: 0 0 0 3px rgba(123, 156, 92, .12); }
+.intake-runtime-status button { flex: none; padding: 3px 6px; border: 1px solid #e0e5da; border-radius: 6px; color: #68785d; background: #fff; cursor: pointer; font-size: 9px; }
+.intake-runtime-status button:hover:not(:disabled) { border-color: #a9b89b; }
+.intake-runtime-status button:disabled { opacity: .55; cursor: wait; }
+.intake-launch-hint { color: #8c9287; font-size: 9px; }
+.intake-launch-hint.error { color: #9b5e4a; }
+.intake-launch-button { min-height: 36px; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 8px 13px; border: 0; border-radius: 9px; color: #fff; background: #3b5134; cursor: pointer; font-size: 11px; font-weight: 650; transition: background .15s, transform .15s; }
+.intake-launch-button:hover:not(:disabled) { background: #2e4329; transform: translateY(-1px); }
+.intake-launch-button:disabled { color: #99a191; background: #e9ede4; cursor: not-allowed; }
+.intake-launch-button .intake-spinner { width: 12px; height: 12px; }
+.intake-launch-error { width: 100%; }
+.intake-config-card .intake-new { margin-top: 9px; padding: 6px 9px; border: 1px solid #d6dece; border-radius: 7px; color: #4c623f; background: #fff; cursor: pointer; font-size: 10px; font-weight: 600; }
+.intake-config-card .intake-new:hover { border-color: #9cad8e; background: #f9fbf6; }
+
 .intake-composer { flex: none; padding: 13px 27px 20px; border-top: 1px solid #e7e8df; background: #fff; }
 .intake-composer textarea { display: block; width: 100%; min-height: 74px; max-height: 190px; resize: vertical; padding: 10px 12px; border: 1px solid #dfe3d8; border-radius: 10px; color: #29372b; background: #fdfdfa; font: inherit; font-size: 13px; line-height: 1.5; }
 .intake-composer textarea::placeholder { color: #a0a69a; }
@@ -157,6 +188,9 @@
   .intake-tabs { gap: 20px; }
   .intake-feed { padding: 27px 20px 24px; }
   .intake-greeting h3 { font-size: 21px; }
+  .intake-live-launch { padding: 11px 15px 12px; }
+  .intake-live-fields { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .intake-live-fields input, .intake-live-fields select { height: 32px; }
   .intake-composer { padding: 11px 15px max(13px, env(safe-area-inset-bottom)); }
   .intake-composer-foot > span { max-width: 33ch; }
   .intake-brief-view { padding: 17px 15px 25px; }

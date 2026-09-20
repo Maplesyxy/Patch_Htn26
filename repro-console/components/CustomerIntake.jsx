@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./intake.css";
 
 const STORAGE_KEY = "patch.customer.brief.v1";
@@ -11,11 +11,12 @@ function modelLabel(model) {
   return model.replace(/^gemini-/i, "Gemini ").replace(/-/g, " ").replace(/\bflash\b/i, "Flash").replace(/\bpro\b/i, "Pro");
 }
 
-function briefMarkdown(brief) {
+function briefMarkdown(brief, targetUrl = "") {
   const field = (value) => value?.trim() || "Unknown";
   return [
     `# ${field(brief.title)}`,
     "",
+    ...(targetUrl ? ["## Target URL", targetUrl, ""] : []),
     "## Summary",
     field(brief.summary),
     "",
@@ -35,6 +36,16 @@ function briefMarkdown(brief) {
     ...(brief.unknowns?.length ? brief.unknowns.map((item) => `- ${item}`) : ["- None marked"]),
     "",
   ].join("\n");
+}
+
+function isHttpTarget(value) {
+  if (!value.trim()) return false;
+  try {
+    const target = new URL(value.trim());
+    return ["http:", "https:"].includes(target.protocol) && !target.username && !target.password;
+  } catch {
+    return false;
+  }
 }
 
 function PatchMark() {
@@ -59,6 +70,12 @@ function Field({ label, value }) {
 
 export default function CustomerIntake({ open, onClose }) {
   const [provider, setProvider] = useState(null);
+  const [runtimeStatus, setRuntimeStatus] = useState(null);
+  const [runtimeLoading, setRuntimeLoading] = useState(true);
+  const [targetUrl, setTargetUrl] = useState("");
+  const [runtimeProvider, setRuntimeProvider] = useState("browserbase");
+  const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState("");
   const [messages, setMessages] = useState([]);
   const [brief, setBrief] = useState(null);
   const [briefReady, setBriefReady] = useState(false);
@@ -77,6 +94,26 @@ export default function CustomerIntake({ open, onClose }) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
+  const loadRuntimeStatus = useCallback(async () => {
+    setRuntimeLoading(true);
+    try {
+      const response = await fetch("/api/runtime", { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "The live runtime is unavailable.");
+      setRuntimeStatus(data);
+      setRuntimeProvider((current) => {
+        if (data.providers?.[current]?.configured) return current;
+        if (data.providers?.browserbase?.configured) return "browserbase";
+        if (data.providers?.local?.configured) return "local";
+        return current;
+      });
+    } catch (reason) {
+      setRuntimeStatus({ available: false, ready: false, error: reason.message || "The live runtime is unavailable." });
+    } finally {
+      setRuntimeLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const stored = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "null");
@@ -84,6 +121,8 @@ export default function CustomerIntake({ open, onClose }) {
         setSavedBrief(stored);
         setBrief(stored.brief);
         setBriefReady(stored.ready === true);
+        if (typeof stored.targetUrl === "string") setTargetUrl(stored.targetUrl);
+        if (["browserbase", "local"].includes(stored.provider)) setRuntimeProvider(stored.provider);
       }
     } catch {
       // A stale or blocked local storage value should not prevent intake.
@@ -98,6 +137,7 @@ export default function CustomerIntake({ open, onClose }) {
     const focusTimer = window.requestAnimationFrame(() => textareaRef.current?.focus());
     let current = true;
     setLoadingProvider(true);
+    loadRuntimeStatus();
     fetch("/api/intake")
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -115,7 +155,7 @@ export default function CustomerIntake({ open, onClose }) {
         return;
       }
       if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = [...dialogRef.current.querySelectorAll('button:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
+      const focusable = [...dialogRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')]
         .filter((node) => !node.hasAttribute("hidden") && node.getAttribute("aria-hidden") !== "true" && node.getClientRects().length > 0);
       if (!focusable.length) return;
       const first = focusable[0];
@@ -136,7 +176,7 @@ export default function CustomerIntake({ open, onClose }) {
       document.body.style.overflow = previousOverflow;
       if (previousFocus?.isConnected) previousFocus.focus();
     };
-  }, [open]);
+  }, [open, loadRuntimeStatus]);
 
   useEffect(() => {
     if (tab === "conversation" && feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
@@ -147,7 +187,28 @@ export default function CustomerIntake({ open, onClose }) {
   const canSend = provider?.configured && provider?.canUse && !loadingProvider;
   const displayBrief = brief || savedBrief?.brief;
   const displayReady = brief ? briefReady : savedBrief?.ready === true;
-  const currentBriefIsSaved = Boolean(savedBrief && displayBrief && JSON.stringify(savedBrief.brief) === JSON.stringify(displayBrief));
+  const currentBriefIsSaved = Boolean(savedBrief && displayBrief && JSON.stringify(savedBrief.brief) === JSON.stringify(displayBrief)
+    && (savedBrief.targetUrl || "") === targetUrl && (savedBrief.provider || "browserbase") === runtimeProvider);
+  const userReport = messages.filter((message) => message.role === "user").map((message) => message.content).join("\n\n");
+  const liveReport = [userReport, draft.trim()].filter(Boolean).join("\n\n") || (displayBrief ? briefMarkdown(displayBrief, targetUrl) : "");
+  const selectedProviderConfigured = runtimeStatus?.providers?.[runtimeProvider]?.configured === true;
+  const runtimeReady = !runtimeLoading && runtimeStatus?.available === true && runtimeStatus?.ready === true && selectedProviderConfigured;
+  const canLaunch = !launching && runtimeReady && isHttpTarget(targetUrl) && liveReport.trim().length >= 20 && liveReport.length <= 8000;
+  const selectedProviderName = runtimeProvider === "browserbase" ? "Browserbase" : "Local browser";
+
+  let runtimeMessage = "Checking the live reproduction runtime…";
+  if (!runtimeLoading) {
+    if (runtimeStatus?.error) runtimeMessage = runtimeStatus.error;
+    else if (!runtimeStatus?.ready) runtimeMessage = runtimeStatus?.missing?.length
+      ? `Runtime setup is incomplete: ${runtimeStatus.missing.join(" · ")}`
+      : "The runtime is connected but not ready yet.";
+    else if (!selectedProviderConfigured) {
+      const otherProvider = runtimeProvider === "browserbase" ? "local" : "browserbase";
+      runtimeMessage = runtimeStatus.providers?.[otherProvider]?.configured
+        ? `${selectedProviderName} is not configured. Choose ${otherProvider === "local" ? "the local browser" : "Browserbase"} instead.`
+        : `${selectedProviderName} is not configured in the runtime.`;
+    } else runtimeMessage = `Ready to reproduce with ${selectedProviderName}.`;
+  }
 
   async function sendMessage() {
     const content = draft.trim();
@@ -181,7 +242,7 @@ export default function CustomerIntake({ open, onClose }) {
 
   function saveBrief() {
     if (!brief) return;
-    const stored = { brief, ready: briefReady, savedAt: new Date().toISOString() };
+    const stored = { brief, ready: briefReady, targetUrl, provider: runtimeProvider, savedAt: new Date().toISOString() };
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
       setSavedBrief(stored);
@@ -195,7 +256,7 @@ export default function CustomerIntake({ open, onClose }) {
     const currentBrief = brief || savedBrief?.brief;
     if (!currentBrief) return;
     try {
-      await navigator.clipboard.writeText(briefMarkdown(currentBrief));
+      await navigator.clipboard.writeText(briefMarkdown(currentBrief, targetUrl || savedBrief?.targetUrl || ""));
       setCopyState("Copied");
       window.setTimeout(() => setCopyState(""), 1800);
     } catch {
@@ -207,7 +268,7 @@ export default function CustomerIntake({ open, onClose }) {
   function downloadBrief() {
     const currentBrief = brief || savedBrief?.brief;
     if (!currentBrief) return;
-    const blob = new Blob([briefMarkdown(currentBrief)], { type: "text/markdown;charset=utf-8" });
+    const blob = new Blob([briefMarkdown(currentBrief, targetUrl || savedBrief?.targetUrl || "")], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -218,7 +279,7 @@ export default function CustomerIntake({ open, onClose }) {
 
   function startNewIntake() {
     if (brief) {
-      const stored = { brief, ready: briefReady, savedAt: new Date().toISOString() };
+      const stored = { brief, ready: briefReady, targetUrl, provider: runtimeProvider, savedAt: new Date().toISOString() };
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
         setSavedBrief(stored);
@@ -235,6 +296,30 @@ export default function CustomerIntake({ open, onClose }) {
     setError("");
     setTab("conversation");
     textareaRef.current?.focus();
+  }
+
+  async function startLiveInvestigation() {
+    if (!canLaunch) return;
+    setLaunching(true);
+    setLaunchError("");
+    try {
+      const response = await fetch("/api/investigations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUrl, report: liveReport, brief: displayBrief || {}, provider: runtimeProvider }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (data.runId) {
+        window.location.href = `/runs/${encodeURIComponent(data.runId)}`;
+        return;
+      }
+      if (!response.ok) throw new Error(data.error || "Could not start the investigation. Your report is still here; retry when ready.");
+      throw new Error("The runtime accepted the request but returned no run id. Check the live runtime status.");
+    } catch (reason) {
+      setLaunchError(reason.message || "Could not start the investigation. Your report is still here; retry when ready.");
+    } finally {
+      setLaunching(false);
+    }
   }
 
   return (
@@ -320,6 +405,51 @@ export default function CustomerIntake({ open, onClose }) {
               </button>
             ) : null}
           </div>
+          <section className="intake-live-launch" aria-labelledby="intake-live-title">
+            <div className="intake-live-heading">
+              <div><h3 id="intake-live-title">Start a live investigation</h3><p>Run the reproduction team against the customer’s app.</p></div>
+              {runtimeReady ? <span className="intake-live-ready">Ready</span> : <span className="intake-live-waiting">Setup needed</span>}
+            </div>
+            <div className="intake-live-fields">
+              <label htmlFor="intake-target-url">
+                <span>Target app URL</span>
+                <input
+                  id="intake-target-url"
+                  type="url"
+                  inputMode="url"
+                  autoComplete="url"
+                  placeholder="https://your-app.example"
+                  value={targetUrl}
+                  onChange={(event) => { setTargetUrl(event.target.value); setSavedNotice(""); }}
+                  aria-invalid={Boolean(targetUrl.trim() && !isHttpTarget(targetUrl))}
+                />
+              </label>
+              <label htmlFor="intake-browser-provider">
+                <span>Browser provider</span>
+                <select
+                  id="intake-browser-provider"
+                  value={runtimeProvider}
+                  onChange={(event) => { setRuntimeProvider(event.target.value); setSavedNotice(""); }}
+                  disabled={runtimeLoading || !runtimeStatus?.providers}
+                >
+                  <option value="browserbase" disabled={!runtimeStatus?.providers?.browserbase?.configured}>Browserbase{runtimeStatus?.providers?.browserbase?.configured ? "" : " · not configured"}</option>
+                  <option value="local" disabled={!runtimeStatus?.providers?.local?.configured}>Local browser{runtimeStatus?.providers?.local?.configured ? "" : " · not configured"}</option>
+                </select>
+              </label>
+            </div>
+            <div className={`intake-runtime-status ${runtimeReady ? "ready" : ""}`} role="status">
+              <span className="intake-runtime-dot" />
+              <p>{runtimeMessage}</p>
+              <button type="button" onClick={loadRuntimeStatus} disabled={runtimeLoading}>{runtimeLoading ? "Checking" : "Refresh"}</button>
+            </div>
+            {runtimeReady && !runtimeStatus.repoConfigured ? <p className="intake-launch-hint">Reproduction is ready. Link a repository later to enable the fix phase.</p> : null}
+            {targetUrl.trim() && !isHttpTarget(targetUrl) ? <p className="intake-launch-hint error">Enter an HTTP or HTTPS URL without a username or password.</p> : null}
+            {liveReport.trim().length < 20 ? <p className="intake-launch-hint">Add at least 20 characters describing the issue before starting.</p> : liveReport.length > 8000 ? <p className="intake-launch-hint error">The customer report is over the 8,000 character limit. Shorten the conversation before starting.</p> : null}
+            <button className="intake-launch-button" type="button" onClick={startLiveInvestigation} disabled={!canLaunch}>
+              {launching ? <><span className="intake-spinner" aria-hidden="true" /> Starting live investigation…</> : "Start live investigation"}
+            </button>
+            {launchError ? <div className="intake-error intake-launch-error" role="alert"><p>{launchError}</p></div> : null}
+          </section>
           <form className="intake-composer" onSubmit={(event) => { event.preventDefault(); sendMessage(); }}>
             <label className="sr-only" htmlFor="intake-message">Describe the issue</label>
             <textarea

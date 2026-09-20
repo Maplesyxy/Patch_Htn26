@@ -166,7 +166,7 @@ export function validateWorkerEvent(raw) {
       current_url: typeof d.current_url === "string" ? d.current_url.slice(0, 2000) : undefined,
       title: typeof d.title === "string" ? d.title.slice(0, 300) : undefined,
       screenshot_url: browserArtifactUrl(d.screenshot_url),
-      step: d.step !== undefined && d.step !== null && d.step !== "" && Number.isInteger(Number(d.step)) && Number(d.step) >= 0 ? Number(d.step) : undefined,
+      step: d.step !== undefined && d.step !== null && d.step !== "" && Number.isInteger(Number(d.step)) && Number(d.step) >= 0 && Number(d.step) <= 1_000_000 ? Number(d.step) : undefined,
       action: typeof d.action === "string" ? d.action.slice(0, 400) : undefined,
     };
     return { ok: true, event };
