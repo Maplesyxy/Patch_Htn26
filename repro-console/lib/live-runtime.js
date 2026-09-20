@@ -4,12 +4,45 @@ const DEFAULT_RUNTIME_URL = "http://127.0.0.1:4318";
 const RUNTIME_TIMEOUT_MS = 5000;
 const RUN_ID_PATTERN = /^run-[0-9]{8}-[a-z0-9]{6}$/;
 const ARTIFACT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/;
+const SENSITIVE_URL_PARAMS = new Set([
+  "token", "accesstoken", "refreshtoken", "idtoken", "sessiontoken", "securitytoken",
+  "auth", "authorization", "apikey", "key", "password", "passwd", "secret",
+  "clientsecret", "credential", "credentials", "signature", "sig",
+]);
+
+function isSensitiveUrlParam(name) {
+  let key = String(name || "");
+  try { key = decodeURIComponent(key); } catch { /* keep the original key */ }
+  key = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return SENSITIVE_URL_PARAMS.has(key)
+    || /(?:access|refresh|id|session|security|bearer|auth)?token$/.test(key)
+    || /(?:api|client|private)?key$/.test(key)
+    || /(?:client)?secret$/.test(key)
+    || /(?:password|passwd|credential|credentials|signature|sig)$/.test(key);
+}
+
+function hasCredentialUrlFields(url) {
+  for (const key of url.searchParams.keys()) {
+    if (isSensitiveUrlParam(key)) return true;
+  }
+  // Hash routing is common in single-page apps, and OAuth credentials are
+  // often placed in the fragment instead of the query string.
+  let fragment = url.hash.slice(1);
+  try { fragment = decodeURIComponent(fragment); } catch { /* inspect the encoded fragment as-is */ }
+  const fragmentParts = fragment.split(/[/?&]/).filter(Boolean);
+  return fragmentParts.some((part) => {
+    const separator = part.indexOf("=");
+    return separator > 0 && isSensitiveUrlParam(part.slice(0, separator));
+  });
+}
 
 export class RuntimeError extends Error {
-  constructor(message, status = 503) {
+  constructor(message, status = 503, { transportError = false, ambiguous = false } = {}) {
     super(message);
     this.name = "RuntimeError";
     this.status = status;
+    this.transportError = transportError;
+    this.ambiguous = ambiguous;
   }
 }
 
@@ -45,7 +78,10 @@ async function requestRuntime(path, { method = "GET", body, range } = {}) {
     const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
     throw new RuntimeError(timedOut
       ? "The live reproduction runtime did not respond in time. Check that it is running."
-      : "The live reproduction runtime is unavailable. Start it and check PATCH_RUNTIME_URL.");
+      : "The live reproduction runtime is unavailable. Start it and check PATCH_RUNTIME_URL.", 503, {
+      transportError: true,
+      ambiguous: true,
+    });
   }
 }
 
@@ -104,6 +140,10 @@ export function validateInvestigationInput(raw) {
     return { error: "The target URL must use HTTP or HTTPS and cannot contain a username or password." };
   }
 
+  if (hasCredentialUrlFields(target)) {
+    return { error: "The target URL cannot contain credential query or fragment fields. Remove tokens, keys, passwords, or secrets and try again." };
+  }
+
   const originalReport = typeof raw.report === "string" ? raw.report.trim() : "";
   if (originalReport.length < 20 || originalReport.length > 8000) {
     return { error: "The report must contain between 20 and 8000 characters." };
@@ -129,13 +169,32 @@ export function validateInvestigationInput(raw) {
 }
 
 export function runtimeWorkspace() {
-  for (const pair of (process.env.REPRO_INGEST_TOKENS || "").split(",")) {
-    const colon = pair.indexOf(":");
-    if (colon > 0 && pair.slice(0, colon).trim() && pair.slice(colon + 1).trim()) return pair.slice(0, colon).trim().slice(0, 60);
-  }
-  return (process.env.PATCH_RUNTIME_WORKSPACE || "acme").trim().slice(0, 60) || "acme";
-}
+  const pairs = (process.env.REPRO_INGEST_TOKENS || "").split(",").flatMap((entry) => {
+    const colon = entry.indexOf(":");
+    if (colon < 1) return [];
+    const workspace = entry.slice(0, colon).trim();
+    const token = entry.slice(colon + 1).trim();
+    return workspace && token ? [{ workspace, token }] : [];
+  });
+  const explicitWorkspace = process.env.PATCH_RUNTIME_WORKSPACE?.trim() || "";
+  const explicitToken = process.env.REPRO_INGEST_TOKEN?.trim() || "";
 
+  if (explicitWorkspace || explicitToken) {
+    if (!pairs.length) {
+      throw new RuntimeError("PATCH_RUNTIME_WORKSPACE or REPRO_INGEST_TOKEN is set, but no matching REPRO_INGEST_TOKENS workspace:token pair is configured.", 500);
+    }
+    const match = pairs.find((pair) =>
+      (!explicitWorkspace || pair.workspace === explicitWorkspace)
+      && (!explicitToken || pair.token === explicitToken));
+    if (!match) {
+      throw new RuntimeError("PATCH_RUNTIME_WORKSPACE and REPRO_INGEST_TOKEN must match the same REPRO_INGEST_TOKENS workspace:token pair.", 500);
+    }
+    return match.workspace;
+  }
+
+  if (pairs.length) return pairs[0].workspace;
+  return "acme";
+}
 export function isApprover(who) {
   return who?.kind === "user" && who.role === "approver";
 }

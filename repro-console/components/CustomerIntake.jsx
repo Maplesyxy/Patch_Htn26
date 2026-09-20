@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "./intake.css";
 
 const STORAGE_KEY = "patch.customer.brief.v1";
-const SAMPLE_REPORT = "I'm seeing duplicate bookings when I double-click Reserve. I expected one reservation but got two. It happened in Chrome on Windows over home Wi-Fi.";
+const SAMPLE_REPORT = "I'm seeing two bookings after I clicked Book once and the response timed out. I expected one reservation. It happened in Chrome on Windows over home Wi-Fi on 2026-10-01 at 19:00.";
 
 function modelLabel(model) {
   if (!model) return "Gemini";
@@ -306,7 +306,12 @@ export default function CustomerIntake({ open, onClose }) {
       const response = await fetch("/api/investigations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUrl, report: liveReport, brief: displayBrief || {}, provider: runtimeProvider }),
+        body: JSON.stringify({
+          targetUrl,
+          report: liveReport,
+          brief: draft.trim() ? {} : messages.length ? (brief || {}) : (displayBrief || {}),
+          provider: runtimeProvider,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (data.runId) {

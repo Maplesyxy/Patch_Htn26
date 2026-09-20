@@ -37,9 +37,14 @@ export async function POST(req) {
     return json({ error: `${providerName} is not configured in the live runtime.` }, 503);
   }
 
+  let workspace;
+  try { workspace = runtimeWorkspace(); } catch (error) {
+    return json({ error: error instanceof RuntimeError ? error.message : "The live runtime workspace is not configured correctly." }, 503);
+  }
+
   const run = await createRun({
     title: input.brief.title,
-    workspace: runtimeWorkspace(),
+    workspace,
     simulated: false,
     createdBy: who.name || "approver",
   });
@@ -64,6 +69,21 @@ export async function POST(req) {
     const message = error instanceof RuntimeError
       ? error.message
       : "The live runtime did not accept this investigation. Check its connection and retry.";
+    if (error instanceof RuntimeError && error.ambiguous) {
+      const body = `The console could not confirm whether the runtime accepted this investigation. It may still be running; keep this room open for updates, or stop the run if no activity appears. ${message}`;
+      try {
+        await appendEvents(run.id, [{
+          kind: "system",
+          from: "system",
+          type: "RUN_DISPATCH_UNKNOWN",
+          ts: new Date().toISOString(),
+          body,
+        }]);
+      } catch {
+        // Keep returning the run id even if the event store is temporarily unavailable.
+      }
+      return json({ runId: run.id, dispatch: "unknown", warning: body }, 202);
+    }
     try {
       await appendEvents(run.id, [{
         kind: "system",

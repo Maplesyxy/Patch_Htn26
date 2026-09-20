@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   canAccessRun,
+  enqueueRuntimeRun,
   isApprover,
   isSameOriginMutation,
+  RuntimeError,
+  runtimeWorkspace,
   safeArtifactName,
   safeRunId,
   safeRuntimeHealth,
@@ -64,6 +67,38 @@ test("browser progress includes safe relative screenshots and useful page detail
   assert.equal(traversal.event.data.screenshot_url, undefined);
 });
 
+test("activity and browser display fields redact credentials and current URLs drop query data", () => {
+  const activity = validateWorkerEvent({
+    kind: "activity",
+    from: "qa-engineer",
+    data: {
+      status: "observing",
+      summary: "Loaded https://app.test/bookings?access_token=activity-secret",
+      observation: "api_key=observation-secret; password=hunter2",
+      step: 1,
+      phase: "S2",
+    },
+  });
+  assert.equal(activity.ok, true);
+  assert.doesNotMatch(activity.event.data.summary, /activity-secret/);
+  assert.doesNotMatch(activity.event.data.observation, /observation-secret|hunter2/);
+
+  const browser = validateWorkerEvent({
+    kind: "browser",
+    from: "qa-engineer",
+    data: {
+      session_id: "session-credential-test",
+      current_url: "https://app.test/bookings?account=A-1001&access_token=url-secret#auth=fragment-secret",
+      title: "token=title-secret",
+      action: "password=action-secret",
+      outcome: "api_key=outcome-secret",
+    },
+  });
+  assert.equal(browser.ok, true);
+  assert.equal(browser.event.data.current_url, "https://app.test/bookings");
+  assert.doesNotMatch(JSON.stringify(browser.event.data), /title-secret|action-secret|outcome-secret|url-secret|fragment-secret/);
+});
+
 test("structured system outcomes describe reproduction separately from execution state", () => {
   const checked = validateWorkerEvent({ kind: "system", type: "RUN_FINISHED", body: "Done", data: { outcome: "reproduced", summary: "The booking duplicated." } });
   assert.equal(checked.event.data.outcome, "reproduced");
@@ -105,6 +140,18 @@ test("live investigation input validates target, report, provider, and bounds th
   assert.match(valid.value.brief.title, /\[email\]/);
   assert.equal(valid.value.provider, "local");
   assert.equal(validateInvestigationInput({ ...valid.value, brief: {} }).value.brief.title, "I expected one reservation but two bookings appeared after clicking Reserve.");
+  const benignQuery = validateInvestigationInput({ ...valid.value, targetUrl: "https://example.test/bookings?account=A-1001" });
+  assert.equal(benignQuery.value.targetUrl, "https://example.test/bookings?account=A-1001");
+  for (const targetUrl of [
+    "https://example.test/bookings?token=secret",
+    "https://example.test/bookings?access_token=secret",
+    "https://example.test/bookings?api_key=secret",
+    "https://example.test/bookings#access_token=secret",
+    "https://example.test/bookings#/flow?password=secret",
+    "https://example.test/bookings#/flow%3Fsecret%3Dsecret-value",
+  ]) {
+    assert.match(validateInvestigationInput({ ...valid.value, targetUrl }).error, /credential query or fragment/);
+  }
   assert.match(validateInvestigationInput({ ...valid.value, targetUrl: "javascript:alert(1)" }).error, /HTTP or HTTPS/);
   assert.match(validateInvestigationInput({ ...valid.value, targetUrl: "https://user:password@example.com" }).error, /username or password/);
   assert.match(validateInvestigationInput({ ...valid.value, report: "short" }).error, /between 20 and 8000/);
@@ -113,6 +160,74 @@ test("live investigation input validates target, report, provider, and bounds th
     ...valid.value,
     brief: { summary: "s".repeat(1200), steps: Array(12).fill("x".repeat(240)), unknowns: Array(12).fill("y".repeat(240)) },
   }).error, /brief is too long/);
+});
+
+test("runtime workspace pairs explicit workspace and worker token without silent mismatch", () => {
+  const names = ["REPRO_INGEST_TOKENS", "PATCH_RUNTIME_WORKSPACE", "REPRO_INGEST_TOKEN"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  try {
+    process.env.REPRO_INGEST_TOKENS = "alpha:token-a,beta:token-b";
+    delete process.env.PATCH_RUNTIME_WORKSPACE;
+    delete process.env.REPRO_INGEST_TOKEN;
+    assert.equal(runtimeWorkspace(), "alpha");
+
+    process.env.PATCH_RUNTIME_WORKSPACE = "beta";
+    assert.equal(runtimeWorkspace(), "beta");
+    process.env.REPRO_INGEST_TOKEN = "token-a";
+    assert.throws(runtimeWorkspace, (error) => error instanceof RuntimeError && /must match the same/.test(error.message));
+
+    process.env.PATCH_RUNTIME_WORKSPACE = "alpha";
+    assert.equal(runtimeWorkspace(), "alpha");
+    delete process.env.PATCH_RUNTIME_WORKSPACE;
+    assert.equal(runtimeWorkspace(), "alpha");
+  } finally {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  }
+});
+
+test("runtime transport failure is marked ambiguous for dispatch reconciliation", async () => {
+  const names = ["PATCH_RUNTIME_TOKEN", "PATCH_RUNTIME_URL"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  try {
+    process.env.PATCH_RUNTIME_TOKEN = "runtime-test-token";
+    process.env.PATCH_RUNTIME_URL = "http://127.0.0.1:4318";
+    globalThis.fetch = async () => { throw new TypeError("connection reset"); };
+    await assert.rejects(
+      enqueueRuntimeRun({ runId: "run-20260920-ab12cd", targetUrl: "https://example.test" }),
+      (error) => error instanceof RuntimeError && error.transportError === true && error.ambiguous === true,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  }
+});
+
+test("runtime HTTP refusal is definite rather than an ambiguous transport failure", async () => {
+  const names = ["PATCH_RUNTIME_TOKEN", "PATCH_RUNTIME_URL"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  try {
+    process.env.PATCH_RUNTIME_TOKEN = "runtime-test-token";
+    process.env.PATCH_RUNTIME_URL = "http://127.0.0.1:4318";
+    globalThis.fetch = async () => new Response("", { status: 409 });
+    await assert.rejects(
+      enqueueRuntimeRun({ runId: "run-20260920-ab12cd", targetUrl: "https://example.test" }),
+      (error) => error instanceof RuntimeError && error.transportError === false && error.ambiguous === false,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  }
 });
 
 test("runtime readiness exposes only the safe health contract", () => {
