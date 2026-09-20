@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.env
+.env.*
+!.env.example
+.vercel/
+__pycache__/
+*.pyc
+.DS_Store
+/repro-handoff.zip

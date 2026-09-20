@@ -1,0 +1,75 @@
+{
+  "_note": "SYNTHETIC. Written for the Repro demo. No real customers. Account ids only, no names or email addresses. Symptoms are written the way people actually report them: vague, contradictory, sometimes wrong.",
+  "generated": "2026-09-19",
+  "tickets": [
+    { "id": "T-01", "account": "A-1001", "channel": "email", "received": "2026-09-16T09:12:00Z",
+      "subject": "Charged for two tables",
+      "body": "I pressed Book ONCE and I have two reservations for the same night. I only want one. Please remove the extra one.",
+      "internal_notes": [] },
+
+    { "id": "T-02", "account": "A-1001", "channel": "chat", "received": "2026-09-16T09:40:00Z",
+      "subject": "still two",
+      "body": "following up, still showing 2. this is on my phone. iphone I think? my wife says it happened to her too on her laptop but she isn't sure.",
+      "internal_notes": [] },
+
+    { "id": "T-03", "account": "A-1002", "channel": "email", "received": "2026-09-16T09:31:00Z",
+      "subject": "Two confirmation emails",
+      "body": "I got two identical confirmation emails for my booking on the 24th. Have I been double booked? I don't want to be charged twice.",
+      "internal_notes": [] },
+
+    { "id": "T-04", "account": "A-1003", "channel": "app_store_review", "received": "2026-09-16T11:02:00Z",
+      "subject": "broken",
+      "body": "Doesn't work. 1 star.",
+      "internal_notes": [] },
+
+    { "id": "T-05", "account": "A-1004", "channel": "email", "received": "2026-09-16T12:20:00Z",
+      "subject": "Duplicate booking on the 25th",
+      "body": "There are two bookings under my account for the 25th at noon. I made one. The second appeared a few seconds later according to the confirmation timestamps.",
+      "internal_notes": [] },
+
+    { "id": "T-06", "account": "A-1005", "channel": "chat", "received": "2026-09-16T13:45:00Z",
+      "subject": "site froze",
+      "body": "the page just hung when I hit book. I waited, nothing, so I closed it. did it go through?",
+      "internal_notes": [] },
+
+    { "id": "T-07", "account": null, "channel": "internal", "received": "2026-09-16T14:05:00Z",
+      "subject": "Re: duplicate bookings",
+      "body": "We fixed this last week, the button is disabled after the first click now. Probably user error / double tapping. Suggest we close these out.",
+      "internal_notes": ["Posted by a support colleague. Not verified against deploy history."] },
+
+    { "id": "T-08", "account": "A-1006", "channel": "email", "received": "2026-09-16T15:30:00Z",
+      "subject": "Two reservations again",
+      "body": "Same thing as last month. One click, two tables. I'm on Chrome on a desktop, no phone involved. Whatever you 'fixed' didn't fix it.",
+      "internal_notes": [] },
+
+    { "id": "T-09", "account": "A-1007", "channel": "chat", "received": "2026-09-17T08:14:00Z",
+      "subject": "only on mobile?",
+      "body": "my colleague says this only happens on mobile. I'm on mobile and it happened. so that tracks I guess.",
+      "internal_notes": [] },
+
+    { "id": "T-10", "account": "A-1008", "channel": "email", "received": "2026-09-17T09:50:00Z",
+      "subject": "Cancelled one, still charged",
+      "body": "I had a duplicate, I cancelled one of them, but my card still shows two holds. Can you sort that out?",
+      "internal_notes": [] },
+
+    { "id": "T-11", "account": "A-1009", "channel": "phone", "received": "2026-09-17T10:30:00Z",
+      "subject": "Duplicate reservation (phone call, transcribed)",
+      "body": "Caller reports two reservations from one booking attempt. Call dropped before we could get the date or device. No follow-up contact on file.",
+      "internal_notes": ["Transcription incomplete. No reservation id captured."] },
+
+    { "id": "T-12", "account": "A-1010", "channel": "email", "received": "2026-09-17T11:11:00Z",
+      "subject": "Two emails, one table",
+      "body": "Got the confirmation twice but when I log in there is only one booking. Just flagging in case it's a bug.",
+      "internal_notes": [] },
+
+    { "id": "T-13", "account": "A-1011", "channel": "chat", "received": "2026-09-17T14:22:00Z",
+      "subject": "slow booking",
+      "body": "took about 10 seconds to book. felt broken. ended up fine though, one booking.",
+      "internal_notes": [] },
+
+    { "id": "T-14", "account": "A-1012", "channel": "email", "received": "2026-09-18T08:05:00Z",
+      "subject": "double booked on safari",
+      "body": "Two reservations from one attempt. Safari on a Mac. Our office wifi is pretty bad if that matters.",
+      "internal_notes": [] }
+  ]
+}

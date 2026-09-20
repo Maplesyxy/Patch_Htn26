@@ -1,0 +1,33 @@
+{
+  "_note": "Hand-labelled ground truth for scoring a run. The agents never see this file. Task 4's 'hand count written down for scoring'.",
+  "incidents_expected": 2,
+  "incidents": {
+    "duplicate_reservations": {
+      "verdict": "confirmed_defect",
+      "root_cause": "POST /api/bookings has no idempotency check; the client fetch wrapper retries once on a transport error, so a lost response yields a second reservation.",
+      "tickets": ["T-01", "T-02", "T-05", "T-08", "T-09", "T-12_NO", "T-14"],
+      "tickets_correct": ["T-01", "T-02", "T-05", "T-08", "T-09", "T-14"]
+    },
+    "duplicate_confirmation_emails": {
+      "verdict": "not_a_defect_for_reservations",
+      "note": "The mailer retried. One reservation, two sends. Must NOT be merged into the duplicate-reservations incident.",
+      "tickets_correct": ["T-03", "T-12"]
+    }
+  },
+  "insufficient_evidence": ["T-04", "T-11"],
+  "unrelated_or_separate": {
+    "T-06": "Reported a hang, never confirmed whether a booking was created. Needs an account lookup, not an incident.",
+    "T-10": "Payment holds after cancellation. A billing question, not the booking defect.",
+    "T-13": "Slow but correct. One booking. Not a defect."
+  },
+  "traps": {
+    "T-07": "Internal note claiming 'fixed last week'. FALSE. The 2026-09-12 change only disabled the button; the retry path is untouched. Must be recorded as a claim with status=reported, never as fact.",
+    "T-09": "Repeats a colleague's 'only on mobile' theory. The reporter's own evidence does not establish it. T-08 and T-14 are desktop.",
+    "mobile_only": "Any hypothesis that the defect is mobile-only must end up refuted: T-08 is desktop Chrome, T-14 is desktop Safari."
+  },
+  "scoring": {
+    "confirmed_defect_accuracy": "1 of 1 real defects found, 0 false positives",
+    "false_merges": "T-03 and T-12 must NOT land in the duplicate-reservations incident",
+    "unsupported_resolved_claims": "target 0"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "claim": {
+    "id": "CLM-001",
+    "source": {"kind": "customer|support_note|log|db|screenshot|experiment", "ref": "T-07", "author": "support-agent-jane", "captured_at": "ISO8601"},
+    "statement": "Atomic, single-fact sentence. One claim per fact.",
+    "entities": {"account_id": null, "reservation_ids": [], "request_id": null, "app_version": null, "device": null, "time_window": null},
+    "missing_fields": ["device", "app_version"],
+    "status": "reported|observed|contradicted|unresolved",
+    "supports": ["HYP-3"],
+    "contradicts": ["CLM-014"],
+    "evidence": ["artifacts/traces/exp3.zip"],
+    "set_by": "support-engineer",
+    "history": [{"at": "ISO8601", "by": "qa-engineer", "from": "reported", "to": "observed", "because": "EXP-3"}]
+  },
+  "incident": {
+    "id": "INC-1",
+    "title": "Duplicate reservations from a single booking attempt",
+    "claims": ["CLM-001"],
+    "tickets": ["T-01", "T-04"],
+    "excluded_tickets": [{"ticket": "T-14", "reason": "2 emails, 1 reservation; see INC-2"}],
+    "match_basis": "account_id+reservation_id|request_id|symptom_only",
+    "status": "open|confirmed_defect|not_a_defect|insufficient_evidence|fix_proposed|fix_verified"
+  },
+  "hypothesis": {
+    "id": "HYP-3",
+    "incident": "INC-1",
+    "statement": "Client auto-retries after a lost response; server is not idempotent.",
+    "predicts": "1 click + dropped response => 2 rows, on any browser",
+    "would_be_refuted_by": "Dropped response yields 1 row",
+    "status": "proposed|testing|supported|refuted|inconclusive",
+    "experiments": ["EXP-3"]
+  },
+  "experiment": {
+    "id": "EXP-3",
+    "hypothesis": "HYP-3",
+    "requested_by": "incident-lead",
+    "run_by": "qa-engineer",
+    "conditions": {"browser": "chromium,webkit-mobile", "network": "abort response to POST /bookings", "clicks": 1, "build": "main@abc123"},
+    "expected_if_true": "2 reservations",
+    "observed": "2 reservations (3/3 runs, both browsers)",
+    "outcome": "supports|refutes|inconclusive|infra_failure",
+    "artifacts": ["artifacts/traces/exp3.zip", "artifacts/tests/repro/test_exp3.spec.ts"],
+    "runs": 3
+  },
+  "patch": {
+    "id": "PATCH-2",
+    "incident": "INC-1",
+    "branch": "fix/inc-1-idempotent-booking",
+    "base": "main@abc123",
+    "root_cause": "One paragraph, cites file:line",
+    "diff_path": "artifacts/patches/patch2.diff",
+    "supersedes": "PATCH-1",
+    "addresses_counterexamples": ["MSG-0042"]
+  },
+  "verdict": {
+    "id": "VER-2",
+    "patch": "PATCH-2",
+    "regression_fails_on_base": true,
+    "regression_passes_on_branch": true,
+    "existing_suite": "pass",
+    "adversarial_cases": [{"name": "two genuine bookings still create two rows", "result": "pass"}],
+    "result": "verified|rejected",
+    "set_by": "release-verifier"
+  }
+}

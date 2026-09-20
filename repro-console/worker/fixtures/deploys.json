@@ -1,0 +1,19 @@
+{
+  "_note": "SYNTHETIC deploy history for the booking app. The sre-analyst checks 'fixed last week' against this.",
+  "deploys": [
+    { "sha": "a91c4f2", "deployed": "2026-09-12T16:40:00Z", "branch": "main",
+      "title": "Fix double bookings: disable Book button while a request is in flight",
+      "files_changed": ["app/book/BookingForm.jsx"],
+      "note": "Client-only. Touches the submit handler and the button's disabled state." },
+    { "sha": "7d0be15", "deployed": "2026-09-04T10:05:00Z", "branch": "main",
+      "title": "Retry a booking once when the connection drops",
+      "files_changed": ["lib/apiClient.js"],
+      "note": "Adds the single retry on transport error. Re-sends the same Idempotency-Key." },
+    { "sha": "3f8a220", "deployed": "2026-08-28T09:15:00Z", "branch": "main",
+      "title": "Log every write with a correlation id and idempotency key",
+      "files_changed": ["app/api/bookings/route.js", "lib/store.js"] },
+    { "sha": "0c1d773", "deployed": "2026-08-21T11:00:00Z", "branch": "main",
+      "title": "First cut: book a table, list reservations, confirmation email",
+      "files_changed": ["app/api/bookings/route.js", "app/book/BookingForm.jsx", "lib/store.js"] }
+  ]
+}
