@@ -2,6 +2,7 @@
 
 import PatchIcon from "@/components/PatchIcon";
 import { AGENTS } from "@/lib/agents";
+import { liveReviewDetails } from "@/lib/live-review";
 import "./live-investigation.css";
 
 const PHASES = [
@@ -383,6 +384,51 @@ function AgentInspector({ phaseEvents, agents, phase, currentPhase }) {
   );
 }
 
+function ReviewArtifacts({ runId, events }) {
+  const review = liveReviewDetails(events);
+  if (!review.patches.length && !review.verdicts.length) return null;
+  const status = review.verdictResult === "verified"
+    ? "Independent verification recorded"
+    : review.verdictResult
+      ? "Verification · " + sentence(review.verdictResult)
+      : "Patch recorded · verification pending";
+  const scope = review.scope === "localmemory"
+    ? "Local memory sandbox only"
+    : review.scope || "Not recorded";
+  const artifactLabels = {
+    "patch.diff": "Patch diff",
+    "verification.md": "Verification report",
+    "verification.json": "Verification data",
+  };
+
+  return (
+    <section className="live-review-artifacts" aria-label="Implementation review artifacts">
+      <div className="live-review-heading">
+        <span className="live-review-mark"><PatchIcon name="verified" size={15} /></span>
+        <span><strong>Implementation review</strong><small>{status}</small></span>
+      </div>
+      <div className="live-review-meta">
+        <span><small>Branch</small><code>{review.branch || "Not recorded"}</code></span>
+        <span><small>Validation scope</small><strong>{scope}</strong></span>
+        {review.scope === "localmemory" ? <span className="live-review-scope-note">No repository push or merge is implied.</span> : null}
+      </div>
+      {review.artifacts.length ? (
+        <nav className="live-review-links" aria-label="Review artifacts">
+          {review.artifacts.map((artifact) => (
+            <a key={artifact} href={`/api/runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifact)}`} target="_blank" rel="noreferrer">
+              <PatchIcon name="arrowUpRight" size={13} />{artifactLabels[artifact]}
+            </a>
+          ))}
+        </nav>
+      ) : <p className="live-review-empty">The ledger contains a patch or verdict record, but no review artifacts were attached.</p>}
+      <div className="live-review-records">
+        {review.patches.map((patch) => <span key={patch.id}>Patch <code>{patch.id}</code></span>)}
+        {review.verdicts.map((verdict) => <span key={verdict.id}>Verdict <code>{verdict.id}</code></span>)}
+      </div>
+    </section>
+  );
+}
+
 export default function LiveInvestigation({
   run,
   events = [],
@@ -456,6 +502,7 @@ export default function LiveInvestigation({
         />
         <AgentInspector phaseEvents={phaseEvents} agents={agents} phase={phase} currentPhase={currentPhase} />
       </div>
+      <ReviewArtifacts runId={run.id} events={events} />
       {terminal ? (
         <div className={"live-run-result" + (blocked ? " is-blocked" : cancelled ? " is-cancelled" : "")}>
           <span className="live-result-mark"><PatchIcon name={blocked ? "alert" : "verified"} size={16} /></span>

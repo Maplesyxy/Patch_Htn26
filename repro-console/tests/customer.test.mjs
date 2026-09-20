@@ -50,6 +50,13 @@ test("redaction removes contact details and assigned secrets without damaging us
   assert.doesNotMatch(result, /Casey Doe|casey@example.com|555-0123|AIza/);
 });
 
+test("redaction preserves ISO incident dates and still removes nearby phone numbers", () => {
+  const result = redactSensitive("One booking was created after the response timed out on 2026-10-01 at 19:00. Contact number +1 (416) 555-0123.");
+  assert.match(result, /2026-10-01 at 19:00/);
+  assert.match(result, /Contact number \[phone\]/);
+  assert.doesNotMatch(result, /416\) 555-0123/);
+});
+
 test("Gemini output is reduced to safe renderable brief fields", () => {
   const response = cleanCustomerResponse({
     reply: "When did this start?",

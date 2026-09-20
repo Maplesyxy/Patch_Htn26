@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "runtime": "node worker/live/server.mjs",
+    "dev:live": "node worker/live/dev.mjs dev",
+    "start:live": "node worker/live/dev.mjs start"
   },
   "dependencies": {
     "@next/env": "15.5.0",

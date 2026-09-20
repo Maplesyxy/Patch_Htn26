@@ -7,6 +7,7 @@ import {
   bookingTargetMatches,
   parseClaudeOutput,
   parseRegressionOutput,
+  prepareBookingFixEvidence,
   runBookingFix,
   validateClaudeEdits,
 } from "../worker/live/booking-fix.mjs";
@@ -51,6 +52,39 @@ test("Claude CLI parser prefers the structured output envelope and rejects CLI e
   assert.equal(parsed.edits[0].path, payload.edits[0].path);
   assert.throws(() => parseClaudeOutput(JSON.stringify({ type: "result", is_error: true, result: "failure" })), /implementation error/);
   assert.throws(() => parseClaudeOutput(JSON.stringify({ type: "result", is_error: false, result: "not-json plaintext" })), /not valid JSON/);
+});
+
+test("fix prompt evidence preserves bounded orchestrator observations, actions, faults, telemetry and base failures", () => {
+  const evidence = prepareBookingFixEvidence({
+    hypothesis: "A retry duplicates a booking.",
+    observations: Array.from({ length: 5 }, (_, index) => ({ id: `OBS-${index}`, body: "B".repeat(1000), controls: Array.from({ length: 8 }, (_, n) => ({ id: `E${n}`, name: `Control ${n}` })) })),
+    observedNetwork: [{ id: "N001", url: "http://127.0.0.1/api/bookings", method: "POST" }],
+    telemetry: Array.from({ length: 12 }, (_, index) => ({ id: `N${index}`, kind: "response", detail: `Observed response ${index}` })),
+    experiment: {
+      id: "EXP-1", result: "reproduced", expected: "one reservation", supervisorSummary: "Two reservations followed the retry.",
+      observed: Array.from({ length: 8 }, (_, index) => ({ step: index + 1, action: "click E1", completed: true, result: `Observed action ${index}`, observation: "OBS-003" })),
+      networkFault: { mode: "drop_response", path: "/api/bookings", used: true, upstreamStatus: 201, times: 1 },
+    },
+  }, {
+    exitCode: 1,
+    checks: [
+      { name: "same_key_sequential", passed: false, detail: "found 2 reservations and emails" },
+      { name: "same_key_concurrent", passed: false, detail: "found 2 reservations and emails" },
+      { name: "different_keys_are_distinct", passed: true },
+    ],
+  });
+  assert.equal(evidence.hypothesis, "A retry duplicates a booking.");
+  assert.equal(evidence.observations.length, 3);
+  assert.equal(evidence.observations[0].body.length, 700);
+  assert.equal(evidence.observations[0].controls.length, 5);
+  assert.equal(evidence.experiment.observed.length, 6);
+  assert.equal(evidence.experiment.observed.at(-1).step, 8);
+  assert.equal(evidence.experiment.networkFault.used, true);
+  assert.equal(evidence.experiment.supervisorSummary, "Two reservations followed the retry.");
+  assert.equal(evidence.telemetry.length, 8);
+  assert.equal(evidence.telemetry.at(-1).detail, "Observed response 11");
+  assert.equal(evidence.baseRegression.checks[0].detail, "found 2 reservations and emails");
+  assert.ok(JSON.stringify(evidence).length < 12000);
 });
 
 test("disabled fix adapter exits before touching source and writes a truthful blocked artifact", async () => {

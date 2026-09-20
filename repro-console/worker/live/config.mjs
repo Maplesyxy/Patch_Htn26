@@ -17,20 +17,22 @@ export async function loadRuntimeConfig(env = process.env, { loadDotenv = true }
     return separator > 0 ? { workspace: item.slice(0, separator), token: item.slice(separator + 1) } : null;
   }).filter(Boolean);
   const explicitToken = env.REPRO_INGEST_TOKEN || "";
-  const matchedPair = explicitToken ? parsedPairs.find((pair) => pair.token === explicitToken) : null;
-  const selectedPair = matchedPair || parsedPairs[0] || null;
-  const ingestToken = explicitToken || selectedPair?.token || "";
   const runtimeWorkspace = env.PATCH_RUNTIME_WORKSPACE || "";
   let workspaceError = "";
-  let workspace = selectedPair?.workspace || runtimeWorkspace || "";
-  if (runtimeWorkspace && selectedPair && runtimeWorkspace !== selectedPair.workspace) {
-    workspaceError = "PATCH_RUNTIME_WORKSPACE must match the selected ingest token workspace.";
-  } else if (explicitToken && parsedPairs.length && !matchedPair) {
-    workspaceError = "REPRO_INGEST_TOKEN does not match a configured workspace token.";
-  } else if (explicitToken && !matchedPair && !runtimeWorkspace) {
-    workspaceError = "Set PATCH_RUNTIME_WORKSPACE alongside an explicit REPRO_INGEST_TOKEN when no workspace mapping is present.";
+  let selectedPair = parsedPairs[0] || null;
+  if (runtimeWorkspace || explicitToken) {
+    if (!parsedPairs.length) {
+      workspaceError = "Set REPRO_INGEST_TOKENS as workspace:token pairs when selecting a runtime token or workspace.";
+      selectedPair = null;
+    } else {
+      selectedPair = parsedPairs.find((pair) =>
+        (!runtimeWorkspace || pair.workspace === runtimeWorkspace)
+        && (!explicitToken || pair.token === explicitToken)) || null;
+      if (!selectedPair) workspaceError = "PATCH_RUNTIME_WORKSPACE and REPRO_INGEST_TOKEN must match the same REPRO_INGEST_TOKENS workspace:token pair.";
+    }
   }
-  if (!workspace) workspace = "default";
+  const ingestToken = explicitToken || selectedPair?.token || "";
+  const workspace = selectedPair?.workspace || "acme";
   const consoleUrl = String(env.REPRO_CONSOLE_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
   const browserbaseConfigured = Boolean(env.BROWSERBASE_API_KEY && env.BROWSERBASE_PROJECT_ID);
   const executionModel = env.PATCH_EXECUTION_MODEL || "opus";
@@ -54,7 +56,7 @@ export async function loadRuntimeConfig(env = process.env, { loadDotenv = true }
     consoleUrl,
     ingestToken,
     workspace,
-    repoConfigured: env.PATCH_FIX_BOOKING_APP === "1" && Boolean(env.PATCH_FIX_REPO_PATH),
+    repoConfigured: env.PATCH_FIX_BOOKING_APP === "1" && await pathExists(env.PATCH_FIX_REPO_PATH),
     browserbase: {
       configured: browserbaseConfigured,
       apiKey: env.BROWSERBASE_API_KEY || "",
@@ -67,7 +69,7 @@ export async function loadRuntimeConfig(env = process.env, { loadDotenv = true }
     claudeCommand,
     geminiApiKey: env.GEMINI_API_KEY || "",
     dataDir: path.resolve(env.PATCH_RUNTIME_DATA_DIR || path.join(root, ".patch-runs")),
-    limits: { actions: 16, runMs: 10 * 60 * 1000, actionMs: 35 * 1000, queued: 5 },
+    limits: { actions: 16, runMs: 10 * 60 * 1000, fixMs: 8 * 60 * 1000, actionMs: 35 * 1000, queued: 5 },
     missing,
   };
 }
@@ -77,8 +79,27 @@ export function validateTargetUrl(input) {
   try { url = new URL(input); } catch { throw new Error("Enter a valid website URL."); }
   if (!(url.protocol === "http:" || url.protocol === "https:")) throw new Error("Only http and https website URLs are supported.");
   if (url.username || url.password) throw new Error("Website URLs cannot contain a username or password.");
+  if (hasCredentialUrlFields(url)) throw new Error("Website URLs cannot contain credential query or fragment fields.");
   if (url.href.length > 2048) throw new Error("Website URL is too long.");
   return url;
+}
+
+function hasCredentialUrlFields(url) {
+  const sensitive = (name) => {
+    const key = decodeURIComponent(String(name || "")).toLowerCase().replace(/[^a-z0-9]/g, "");
+    return /^(token|accesstoken|refreshtoken|idtoken|sessiontoken|securitytoken|auth|authorization|apikey|key|password|passwd|secret|clientsecret|credential|credentials|signature|sig|authcode|authorizationcode|clientassertion|assertion|jwt|session|sessionid|sid|state)$/.test(key)
+      || /(?:access|refresh|id|session|security|bearer|auth)?token$/.test(key)
+      || /(?:api|client|private)?key$/.test(key)
+      || /(?:client)?secret$/.test(key)
+      || /(?:password|passwd|credential|credentials|signature|sig|assertion|jwt|session|sessionid|sid|state)$/.test(key);
+  };
+  for (const name of url.searchParams.keys()) if (sensitive(name)) return true;
+  let fragment = url.hash.slice(1);
+  try { fragment = decodeURIComponent(fragment); } catch { /* inspect encoded fragment */ }
+  return fragment.split(/[/?&]/).some((part) => {
+    const index = part.indexOf("=");
+    return index > 0 && sensitive(part.slice(0, index));
+  });
 }
 
 async function hasPlaywrightChromium(customExecutablePath) {
@@ -115,8 +136,13 @@ export function configForTest(overrides = {}) {
     claudeCommand: "claude",
     geminiApiKey: "test-key",
     dataDir: path.join(root, ".patch-runs-test"),
-    limits: { actions: 16, runMs: 600000, actionMs: 35000, queued: 5 },
+    limits: { actions: 16, runMs: 600000, fixMs: 480000, actionMs: 35000, queued: 5 },
     missing: [],
     ...overrides,
   };
+}
+
+async function pathExists(value) {
+  if (!value || typeof value !== "string") return false;
+  try { await fs.access(value); return true; } catch { return false; }
 }

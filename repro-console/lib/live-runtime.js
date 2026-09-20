@@ -7,7 +7,8 @@ const ARTIFACT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/;
 const SENSITIVE_URL_PARAMS = new Set([
   "token", "accesstoken", "refreshtoken", "idtoken", "sessiontoken", "securitytoken",
   "auth", "authorization", "apikey", "key", "password", "passwd", "secret",
-  "clientsecret", "credential", "credentials", "signature", "sig",
+  "clientsecret", "credential", "credentials", "signature", "sig", "authcode",
+  "authorizationcode", "clientassertion", "assertion", "jwt", "session", "sessionid", "sid", "state",
 ]);
 
 function isSensitiveUrlParam(name) {
@@ -18,7 +19,7 @@ function isSensitiveUrlParam(name) {
     || /(?:access|refresh|id|session|security|bearer|auth)?token$/.test(key)
     || /(?:api|client|private)?key$/.test(key)
     || /(?:client)?secret$/.test(key)
-    || /(?:password|passwd|credential|credentials|signature|sig)$/.test(key);
+    || /(?:password|passwd|credential|credentials|signature|sig|assertion|jwt|session|sessionid|sid|state)$/.test(key);
 }
 
 function hasCredentialUrlFields(url) {

@@ -19,3 +19,13 @@
 - Checked desktop and 390-pixel mobile layouts, navigation, filters, intake focus handling, and the investigation room. Fixed a hidden table label that caused horizontal overflow; checked the browser console for errors.
 - Confirmed the Gemini key is ignored by Git and absent from tracked source and browser bundles. Local preview uses loopback-only process settings; saved authentication configuration is unchanged.
 - Committed implementation milestones without co-author trailers. No remote push was performed.
+
+### Live runtime integration
+
+- Pushed integration checkpoints to `Maplesyxy/Patch_Htn26` on `main`, without co-author trailers. Added the live event contract, URL/report launch API, agent/browser panel, Browserbase and local Chromium adapters, and isolated booking fix adapter.
+- The console proxies an authenticated long-lived Node worker. Live activity and browser frames travel through the existing ingest/SSE pipeline. Phase tabs follow actual stage events and preserve historical observations.
+- Verified the Gemini customer endpoint through the intake UI and the installed authenticated Claude Code CLI with a real structured Opus response. The CLI reported `claude-opus-5` for the configured `opus` alias.
+- Verified local Chromium against the included booking app: navigation, visible control discovery, filling a reported date, immutable screenshot creation, and browser cleanup.
+- Ran the protected booking suite on the seeded app: repeated-key sequential and concurrent checks failed as expected; GET, validation, distinct keys, account isolation, and missing-key controls passed.
+- Browserbase session creation, live view, and release are implemented against the official API contract. Live cloud testing is pending teammate credentials. Source verification is scoped to the included app's isolated local-memory store; the suite does not validate Redis behavior.
+- Complete end-to-end model-loop validation remains pending at this checkpoint.

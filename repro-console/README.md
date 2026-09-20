@@ -1,5 +1,7 @@
 # Repro console
 
+For the current Node live investigation flow, start with the [root README](../README.md) and [Browserbase handoff](../BROWSERBASE_HANDOFF.md). `npm run dev:live` starts the console and private worker; **New report → Start live investigation** launches a URL and report. The Python/JiuwenSwarm examples below remain available as earlier integrations.
+
 A live room for the Repro agent team: the conversation between agents as a group chat, the evidence
 ledger beside it, the pipeline stage on top, and human sign-off for anything that leaves the sandbox.
 
@@ -121,7 +123,7 @@ Things that will bite you:
 | GET | `/api/intake` | signed-in user | Gemini configuration status and model (no key) |
 | POST | `/api/intake` | approver | Generate a support reply and structured incident brief |
 
-Event kinds: `message`, `ledger`, `stage`, `tool`, `browser`, `approval`, `decision` (human only), `system`. Shapes are in `lib/validate.js`.
+Event kinds: `message`, `ledger`, `stage`, `tool`, `activity`, `browser`, `approval`, `decision` (human only), `system`. Shapes are in `lib/validate.js`. The live launch routes are `GET /api/runtime`, `POST /api/investigations`, `POST /api/runs/:id/control`, and `GET /api/runs/:id/artifacts/:artifact`.
 
 ## Enterprise readiness: what is real and what is not
 
@@ -133,7 +135,7 @@ Not done, and you should say so if asked:
   Clerk, Auth.js or WorkOS; every route already goes through that one function.
 - **Tenant isolation for viewers.** Workspaces isolate writers. Every signed-in person sees every workspace.
 - **Retention, deletion, PII controls.** The log keeps everything forever. Keep customer names and emails out of events (the support agent prompt already requires this).
-- **Artifacts.** Traces, diffs and screenshots are shown as paths. Upload them to Vercel Blob or S3 and send `https://` links if you want them clickable.
+- **Artifact hosting.** The Node worker serves screenshots, reproduction packets, and verification artifacts through the authenticated console proxy from local disk. Durable object storage and retention are not configured.
 
 ## Limits to know before the demo
 

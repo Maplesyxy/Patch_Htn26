@@ -65,6 +65,7 @@ export class BrowserSession {
           // the server has had a chance to process it.
           const upstream = await route.fetch({ timeout: this.config.limits.actionMs, maxRedirects: 0, maxRetries: 0 });
           this.networkFault.upstreamStatus = upstream.status();
+          this.networkFault.applied = true;
           await route.abort("connectionreset");
           this.record("response_dropped", `Upstream returned ${upstream.status()} for POST ${parsed.pathname}; the browser response was cut.`);
         } catch (error) {
@@ -133,10 +134,16 @@ export class BrowserSession {
         const id = `E${index + 1}`;
         const tag = el.tagName.toLowerCase();
         const labels = el.labels ? [...el.labels].map((x) => x.innerText).join(" ") : "";
-        const text = cleanText(el.getAttribute("aria-label") || el.getAttribute("title") || labels || el.innerText || el.getAttribute("placeholder") || el.getAttribute("alt"));
         const type = tag === "input" ? el.getAttribute("type") || "text" : undefined;
+        const placeholder = cleanText(el.getAttribute("placeholder"), 80);
+        const accessibleName = el.getAttribute("aria-label") || el.getAttribute("title") || labels || el.innerText || placeholder || el.getAttribute("alt");
+        const text = cleanText(accessibleName);
+        const sensitive = /password|email|e-mail|tel|phone|credit|card|cvv|cvc|token|secret|auth/i.test(`${type || ""} ${el.getAttribute("name") || ""} ${el.id || ""} ${accessibleName || ""}`);
         const options = tag === "select" ? [...el.options].slice(0, 30).map((option) => cleanText(option.label || option.textContent, 80)) : undefined;
-        return { id, domIndex, tag, role: el.getAttribute("role") || undefined, type, name: text || tag, disabled: Boolean(el.disabled), placeholder: cleanText(el.getAttribute("placeholder"), 80) || undefined, options };
+        const selectedOption = tag === "select" ? cleanText(el.selectedOptions?.[0]?.label || el.selectedOptions?.[0]?.textContent, 120) : undefined;
+        const value = !sensitive && "value" in el && tag !== "select" ? cleanText(el.value, 140) : undefined;
+        const checked = /^(checkbox|radio)$/.test(type || "") ? Boolean(el.checked) : undefined;
+        return { id, domIndex, tag, role: el.getAttribute("role") || undefined, type, name: text || tag, disabled: Boolean(el.disabled), placeholder: placeholder || undefined, value, checked, selectedOption: sensitive ? undefined : selectedOption, options: sensitive ? undefined : options };
       });
       const body = cleanText(document.body?.innerText || "", 9000);
       return { title: cleanText(document.title, 180), body, elements, selector, viewport: { width: innerWidth, height: innerHeight }, href: location.href };
@@ -154,7 +161,7 @@ export class BrowserSession {
     state.url = safeUrl(state.href, this.origin);
     delete state.href;
     delete state.selector;
-    state.elements = state.elements.map(({ domIndex, ...item }) => ({ ...item, name: redact(item.name), placeholder: item.placeholder ? redact(item.placeholder) : undefined, options: item.options?.map(redact) }));
+    state.elements = state.elements.map(({ domIndex, ...item }) => ({ ...item, name: redact(item.name), placeholder: item.placeholder ? redact(item.placeholder) : undefined, value: item.value ? redact(item.value) : undefined, selectedOption: item.selectedOption ? redact(item.selectedOption) : undefined, options: item.options?.map(redact) }));
     return { state, handles };
   }
 
@@ -173,8 +180,8 @@ export class BrowserSession {
       if (!endpoint || new URL(endpoint.url).origin !== this.origin || !endpoint.pathname || endpoint.pathname === "/") {
         throw new Error("Network fault needs a same-origin request path observed on this page.");
       }
-      if (!/POST|GET/.test(endpoint.method)) throw new Error("Network fault source must be an observed same-origin request.");
-      if (!this.networkFault) this.networkFault = { pathname: endpoint.pathname, used: false };
+      if (endpoint.method !== "POST") throw new Error("Network fault source must be an observed same-origin POST request.");
+      if (!this.networkFault) this.networkFault = { pathname: endpoint.pathname, requestId: endpoint.id, used: false, applied: false };
       if (this.networkFault.pathname !== endpoint.pathname) throw new Error("Only one observed request path can be faulted in this experiment.");
       return `Configured a one-time response drop for the first POST to observed same-origin path ${endpoint.pathname}.`;
     }
@@ -298,16 +305,23 @@ export async function openBrowserSession(config, provider, targetUrl, signal, re
 export function validateNetworkFaultRequest(session, action, report) {
   if (action.mode !== "drop_response") return action.mode === "none";
   if (!/drop(?:s|ped|ping)?\s+(?:the\s+)?response|lost response|response loss|connection reset|retry|timed?\s*out/i.test(report)) return false;
-  return session.observedUrls.has(action.networkRequestId);
+  return session.observedUrls.get(action.networkRequestId)?.method === "POST";
 }
 
 function redact(input) {
-  return String(input || "")
+  const protectedDates = [];
+  let text = String(input || "").replace(/\b\d{4}-\d{2}-\d{2}\b/g, (value) => {
+    const key = `__PATCHDATE${protectedDates.length}__`;
+    protectedDates.push(value);
+    return key;
+  });
+  text = text
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
     .replace(/\b(?:\+?\d[\d ().-]{7,}\d)\b/g, "[redacted number]")
     .replace(/(?:bearer\s+)[A-Z0-9._~+/-]+/gi, "Bearer [redacted]")
-    .replace(/(token|secret|password|api[-_]?key)(\s*[:=]\s*)[^\s,;]+/gi, "$1$2[redacted]")
-    .slice(0, 1200);
+    .replace(/(token|secret|password|api[-_]?key)(\s*[:=]\s*)[^\s,;]+/gi, "$1$2[redacted]");
+  for (let i = 0; i < protectedDates.length; i += 1) text = text.replace(`__PATCHDATE${i}__`, protectedDates[i]);
+  return text.slice(0, 1200);
 }
 
 function shortError(error) { return String(error?.message || error || "Unknown browser error").replace(/https?:\/\/[^\s)]+/g, "[url]").slice(0, 240); }
