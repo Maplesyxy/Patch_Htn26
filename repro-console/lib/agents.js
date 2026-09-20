@@ -2,13 +2,22 @@
 // `model` is a display label only: change it here when you change the model in the agent runtime.
 
 export const AGENTS = {
-  "incident-lead":     { label: "Incident lead",     short: "LD", role: "Incident commander", model: "Claude Opus 5", color: "#14213D" },
-  "support-engineer":  { label: "Support engineer",  short: "SU", role: "Tier-2 support", model: "Gemini 3.8 Flash", color: "#B4236B" },
-  "sre-analyst":       { label: "SRE analyst",       short: "SR", role: "Observability", model: "DeepSeek V4.1 Flash", color: "#0B7285" },
-  "qa-engineer":       { label: "QA engineer",       short: "QA", role: "Experiments", model: "Gemini 3.1 Pro", color: "#6741D9" },
-  "software-engineer": { label: "Software engineer", short: "DV", role: "Fix author", model: "Claude Sonnet 5", color: "#2F6FED" },
-  "release-verifier":  { label: "Release verifier",  short: "VF", role: "Review and sign-off", model: "GPT-5.6 Sol", color: "#8A5A00" },
+  "incident-lead":     { label: "Supervisor agent",     short: "SV", role: "Swarm supervisor", model: "JiuwenSwarm leader", color: "#8B684A" },
+  "support-engineer":  { label: "Customer agent",        short: "CU", role: "Customer intake", model: "Gemini Flash", color: "#9B7657" },
+  "sre-analyst":       { label: "Incidents agent",       short: "IN", role: "Incident signals", model: "DeepSeek V4.1 Flash", color: "#547C80" },
+  "qa-engineer":       { label: "Execution agent",       short: "EX", role: "Browser experiments", model: "Gemini 3.1 Pro", color: "#6C7F9A" },
+  "software-engineer": { label: "Implementation agent",  short: "IM", role: "Implementation", model: "Implementation runtime", color: "#607B55" },
+  "release-verifier":  { label: "Verification agent",    short: "VE", role: "Independent verification", model: "GPT-5.6 Sol", color: "#A47A42" },
 };
+
+// Display-only grouping for the investigation room. Agent keys stay canonical
+// because the runtime, reducer and authorization rules depend on them.
+export const AGENT_GROUPS = [
+  { label: "Customer agent", agents: ["support-engineer"] },
+  { label: "Reproduction swarm", agents: ["qa-engineer", "incident-lead", "sre-analyst"] },
+  { label: "Implementation", agents: ["software-engineer"] },
+  { label: "Verification", agents: ["release-verifier"] },
+];
 
 export const HUMAN = { label: "Human", short: "HU", role: "Approver", color: "#3A4556" };
 
