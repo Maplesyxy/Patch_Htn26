@@ -33,11 +33,11 @@ export default function HeroIntro({ onReport, onDemo, starting = false }) {
             </radialGradient>
           </defs>
           <ellipse cx="365" cy="210" rx="330" ry="190" fill="url(#hero-wash)" />
-          <path className="patch-hero-orbit" d="M46 209C146 209 163 104 274 104s104 211 210 211 88-106 170-106" />
-          <path className="patch-hero-flow-dash" d="M46 209C146 209 163 104 274 104s104 211 210 211 88-106 170-106" />
+          <path className="patch-hero-orbit" d="M118 209C180 209 198 104 274 104s104 211 210 211 75-106 98-106" />
+          <path className="patch-hero-flow-dash" d="M118 209C180 209 198 104 274 104s104 211 210 211 75-106 98-106" />
           <path className="patch-hero-branch" d="M274 104c35 0 48 46 74 78m-74 33c37 0 47 1 76 1m-76 32c35 0 48-45 74-77" />
-          <circle className="patch-hero-flow-pulse" cx="48" cy="209" r="5" />
-          <circle className="patch-hero-flow-target" cx="654" cy="209" r="7" />
+          <circle className="patch-hero-flow-pulse" cx="118" cy="209" r="5" />
+          <circle className="patch-hero-flow-target" cx="582" cy="209" r="7" />
           <circle cx="274" cy="104" r="3.5" fill="#246F78" /><circle cx="274" cy="215" r="3.5" fill="#246F78" /><circle cx="274" cy="247" r="3.5" fill="#246F78" />
         </svg>
 

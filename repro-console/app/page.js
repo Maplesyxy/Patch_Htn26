@@ -29,8 +29,15 @@ function formatDate(value) {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+function displayRunTitle(run) {
+  const title = run.title || "Untitled investigation";
+  if (!run.simulated) return title;
+  const cleaned = title.replace(/^Simulated replay:\s*/i, "");
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
 function runOutcome(status, run) {
-  if (run && run.simulated && Number(run.demoIndex) >= 64) return { label: "Replay complete", className: "complete", terminal: true };
+  if (run && run.simulated && Number(run.demoIndex) >= 64) return { label: "Complete", className: "complete", terminal: true };
   if (status === "finished") return { label: "Completed", className: "complete", terminal: true };
   if (status === "blocked") return { label: "Blocked", className: "blocked", terminal: true };
   if (status === "cancelled" || status === "canceled" || status === "stopped") return { label: "Stopped", className: "stopped", terminal: true };
@@ -61,14 +68,14 @@ function SampleReplay({ starting, onStart }) {
   return (
     <section className="patch-sample-card">
       <div className="patch-sample-copy">
-        <div className="patch-sample-label"><span className="patch-sample-glyph"><PatchIcon name="spark" size={13} /></span> Sample replay</div>
+        <div className="patch-sample-label"><span className="patch-sample-glyph"><PatchIcon name="spark" size={13} /></span> Demo investigation</div>
         <h2>One click.<br />Two bookings.</h2>
         <p>Follow the team as it traces a duplicate booking to a lost network response.</p>
         <button className="patch-button patch-button-dark" type="button" onClick={onStart} disabled={starting}>
           {starting ? "Starting investigation…" : "Watch investigation"}
           {!starting ? <PatchIcon name="arrowRight" size={15} /> : <span className="patch-button-spinner" aria-hidden="true" />}
         </button>
-        <span className="patch-sample-disclosure">A simulated investigation, clearly labeled in the room.</span>
+        <span className="patch-sample-disclosure">Follow the investigation from report to verified fix.</span>
       </div>
       <div className="patch-trace" aria-label="Example network trace">
         <div className="patch-trace-top">
@@ -146,7 +153,7 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
             <h2>Investigations</h2>
             <span className="patch-total-count">{runs ? runs.length : "—"}</span>
           </div>
-          <p>Live work from your agent runtime and sample replays.</p>
+          <p>Live investigations and demos.</p>
         </div>
         <label className="patch-search">
           <PatchIcon name="search" size={16} />
@@ -173,14 +180,14 @@ function RunTable({ runs, loading, filter, onFilter, search, onSearch, expanded 
               return (
                 <tr key={run.id}>
                   <td>
-                    <a className="patch-run-title" href={"/runs/" + encodeURIComponent(run.id)}>{run.title || "Untitled investigation"}</a>
-                    <span className="patch-run-subtitle">{run.simulated ? <span className="patch-simulated-tag"><i />Simulated</span> : null}<span>{run.workspace || "Workspace"} · {run.id}</span></span>
+                    <a className="patch-run-title" href={"/runs/" + encodeURIComponent(run.id)}>{displayRunTitle(run)}</a>
+                    <span className="patch-run-subtitle">{run.simulated ? <><span className="patch-simulated-tag"><i />Demo</span><span>{run.id}</span></> : <span>{run.workspace || "Workspace"} · {run.id}</span>}</span>
                   </td>
                   <td><span className="patch-stage-value"><span>{run.stage || "S0"}</span>{stageName(run.stage)}</span></td>
                   <td><span className={"patch-status patch-status-" + outcome.className}><i />{outcome.label}</span></td>
                   <td className="patch-event-count">{run.eventCount || 0} events</td>
                   <td className="patch-date">{formatDate(run.createdAt)}</td>
-                  <td><a className="patch-open-run" href={"/runs/" + encodeURIComponent(run.id)} aria-label={"Open " + (run.title || "investigation")}><PatchIcon name="arrowRight" size={15} /></a></td>
+                  <td><a className="patch-open-run" href={"/runs/" + encodeURIComponent(run.id)} aria-label={"Open " + displayRunTitle(run)}><PatchIcon name="arrowRight" size={15} /></a></td>
                 </tr>
               );
             })}
@@ -306,7 +313,7 @@ function SettingsView({ me }) {
       </div>
       <section className="patch-settings-help">
         <span className="patch-settings-help-icon"><PatchIcon name="book" size={17} /></span>
-        <span><strong>Setting up the Repro runtime?</strong><small>Read the deployment guide for ingest tokens, worker setup, and the simulated replay.</small></span>
+        <span><strong>Setting up the Repro runtime?</strong><small>Read the deployment guide for ingest tokens, worker setup, and the demo replay.</small></span>
         <a href="https://github.com/Maplesyxy/Patch_Htn26/blob/main/repro-console/README.md#deploy" target="_blank" rel="noreferrer">Open setup guide <PatchIcon name="arrowUpRight" size={14} /></a>
       </section>
     </>

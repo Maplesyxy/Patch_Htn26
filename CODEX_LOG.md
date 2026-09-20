@@ -49,3 +49,11 @@
 - Checked desktop and 390px mobile layouts, intake disclosures, phase history, actual saved browser captures, no-capture states, and a full 64-event sample with pause/resume and 2× playback. Fixed cramped room columns, clipped chat content, hero overlap, and horizontal feed overflow.
 - Merged teammate Browserbase and agent-model-picker updates; preserved the model selection API and storage behavior while matching the picker styling to the new interface.
 - Production build and all 37 automated tests passed. Temporary browser-review routes were removed. No new external model or Browserbase sessions were needed for this UI validation.
+
+### Compact workspace refinements
+
+- Replaced the sidebar's filled active accent with a thin line. Inset the hero cards inside the diagram and moved the animation control away from its corner.
+- Pinned the desktop investigation summary, reduced chat card spacing, improved reference contrast, and hid internal panel scrollbars while retaining scrolling.
+- Replaced repetitive simulation disclaimers with a compact Demo label and clearer display titles. Retained all demo execution guards and original event data.
+- Preserved both existing preview investigations and model selections across the local UI rebuild. Production build and desktop/mobile visual checks validate the presentation changes.
+- Clarified the sticky target: phase overview cards now remain at the top of the conversation scroll area, while the general run header scrolls away. Verified Reproduction and Implementation cards stay fixed as their message feeds scroll; tall overviews retain their own bounded scrolling.
