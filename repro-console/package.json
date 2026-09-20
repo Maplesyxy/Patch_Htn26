@@ -8,10 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "@next/env": "15.5.0",
     "@upstash/redis": "^1.34.0",
     "next": "^15.5.0",
+    "playwright": "^1.63.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
