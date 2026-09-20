@@ -32,14 +32,21 @@ Vercel functions are short-lived. Vercel hosts the control plane: ingest, storag
    - `REPRO_INGEST_TOKENS` e.g. `acme:<openssl rand -hex 24>`
    - `REPRO_APPROVER_PASSWORD`, `REPRO_VIEWER_PASSWORD`
    - `REPRO_SESSION_SECRET` = `openssl rand -hex 32`
+   - `GEMINI_API_KEY` for customer intake (server only); optionally set `PATCH_CUSTOMER_MODEL` (defaults to `gemini-3.6-flash`)
 5. Redeploy. Open the URL, sign in as approver, press **Play simulated replay** to check streaming works.
 6. Point the runtime at it:
    ```
    export REPRO_CONSOLE_URL=https://<your-app>.vercel.app
    export REPRO_INGEST_TOKEN=<the token after "acme:">
-   python worker/example_run.py
-   ```
-   The script prints a watch link, proves a forbidden write is refused, and waits for your approval in the browser.
+python worker/example_run.py
+```
+The script prints a watch link, proves a forbidden write is refused, and waits for your approval in the browser.
+
+## Customer intake with Gemini
+
+For local development, put `GEMINI_API_KEY` in the ignored `.env.local` file and restart `npm run dev`. In production, set the same variable in the deployment environment. The key stays on the server; the browser receives only provider readiness and the configured model name. `PATCH_CUSTOMER_MODEL` selects the Gemini model and defaults to `gemini-3.6-flash`. Only an approver can generate a brief. Saving a brief stores it in that browser and does not start an agent investigation.
+
+If `GEMINI_API_KEY` is also set in the worker environment, `support-engineer` uses Gemini's OpenAI-compatible endpoint with `gemini-3.6-flash`. `REPRO_MODEL_SUPPORT_ENGINEER`, `REPRO_BASE_URL_SUPPORT_ENGINEER`, and `REPRO_API_KEY_SUPPORT_ENGINEER` can override its model, endpoint, and key.
 
 CLI alternative: `npm i -g vercel && vercel link && vercel env pull && vercel --prod`.
 Local: `npm install && npm run dev` (no Redis needed locally; it falls back to memory).
@@ -111,6 +118,8 @@ Things that will bite you:
 | GET | `/api/runs/:id/stream` | user | Server-sent events, resumes from `Last-Event-ID` |
 | POST | `/api/runs/:id/human` | approver | `{mode:"message", body}` or `{mode:"decision", approval, decision, note}` |
 | GET | `/api/runs/:id/export` | worker or user | Full audit JSON |
+| GET | `/api/intake` | signed-in user | Gemini configuration status and model (no key) |
+| POST | `/api/intake` | approver | Generate a support reply and structured incident brief |
 
 Event kinds: `message`, `ledger`, `stage`, `tool`, `browser`, `approval`, `decision` (human only), `system`. Shapes are in `lib/validate.js`.
 

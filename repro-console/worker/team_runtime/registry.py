@@ -17,7 +17,7 @@ PROMPT_DIR = TEAM_DIR / "agents"
 # REPRO_MODEL_<AGENT_WITH_UNDERSCORES>, e.g. REPRO_MODEL_QA_ENGINEER.
 DEFAULT_MODELS = {
     "incident-lead":     "anthropic/claude-opus-4.1",
-    "support-engineer":  "google/gemini-2.5-flash",
+    "support-engineer":  "google/gemini-3.6-flash",
     "sre-analyst":       "deepseek/deepseek-chat",
     "qa-engineer":       "google/gemini-2.5-pro",
     "software-engineer": "anthropic/claude-sonnet-4.5",
@@ -66,16 +66,24 @@ def load_agent(name):
     path = PROMPT_DIR / f"{name}.md"
     if not path.exists():
         raise FileNotFoundError(f"No prompt for {name} at {path}")
+    explicit_model = _env(name, "MODEL")
+    explicit_base_url = _env(name, "BASE_URL")
+    explicit_api_key = _env(name, "API_KEY")
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    use_direct_gemini = name == "support-engineer" and bool(gemini_key)
     return Agent(
         name=name,
-        model=_env(name, "MODEL") or DEFAULT_MODELS[name],
+        model=explicit_model or ("gemini-3.6-flash" if use_direct_gemini else DEFAULT_MODELS[name]),
         temperature=float(_env(name, "TEMP") or TEMPERATURES[name]),
         tools=list(TOOLS[name]),
         prompt=path.read_text(encoding="utf-8"),
         # Per-agent endpoint overrides, so you can point one agent at a provider directly
         # while the rest go through a single router.
-        base_url=_env(name, "BASE_URL") or os.environ.get("REPRO_LLM_BASE_URL", "https://openrouter.ai/api/v1"),
-        api_key=_env(name, "API_KEY") or os.environ.get("REPRO_LLM_API_KEY", ""),
+        base_url=explicit_base_url or (
+            "https://generativelanguage.googleapis.com/v1beta/openai"
+            if use_direct_gemini else os.environ.get("REPRO_LLM_BASE_URL", "https://openrouter.ai/api/v1")
+        ),
+        api_key=explicit_api_key or (gemini_key if use_direct_gemini else os.environ.get("REPRO_LLM_API_KEY", "")),
     )
 
 
@@ -85,7 +93,11 @@ def load_team(names=None):
 
 def separation_report(team):
     """The three separations team/MODELS.md says to keep if any model changes."""
-    fam = lambda n: team[n].model.split("/")[0] if n in team else None
+    def fam(name):
+        if name not in team:
+            return None
+        model = team[name].model
+        return "google" if model.startswith("gemini-") or model.startswith("google/gemini-") else model.split("/")[0]
     pairs = [("software-engineer", "release-verifier"), ("qa-engineer", "release-verifier"),
              ("support-engineer", "sre-analyst")]
     out = []
