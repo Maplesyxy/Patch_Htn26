@@ -65,8 +65,8 @@ export class BrowserSession {
           // the server has had a chance to process it.
           const upstream = await route.fetch({ timeout: this.config.limits.actionMs, maxRedirects: 0, maxRetries: 0 });
           this.networkFault.upstreamStatus = upstream.status();
-          this.networkFault.applied = true;
           await route.abort("connectionreset");
+          this.networkFault.applied = true;
           this.record("response_dropped", `Upstream returned ${upstream.status()} for POST ${parsed.pathname}; the browser response was cut.`);
         } catch (error) {
           this.record("response_drop_error", `Could not complete the upstream request before cutting the response: ${shortError(error)}`);

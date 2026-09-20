@@ -74,9 +74,13 @@ export async function callExecutionModel(config, prompt, signal) {
     "--setting-sources", "",
     "--no-session-persistence",
   ];
-  const result = await runChild(config.claudeCommand, args, { signal, timeoutMs: 120000 });
+  const result = await runChild(config.claudeCommand, args, { signal, timeoutMs: 180000 });
   const response = parseJson(result.stdout);
-  if (response.is_error || response.type === "error") throw new Error("Claude Code could not produce a browser action.");
+  if (response.is_error || response.type === "error") {
+    const error = new Error("Claude Code could not produce a browser action.");
+    error.retryable = isTransientServiceFailure(JSON.stringify(response));
+    throw error;
+  }
   const structured = response.structured_output || response.structuredOutput;
   if (structured && typeof structured === "object") return validateAction(structured);
   if (typeof response.result === "string") return validateAction(parseJson(response.result));
@@ -139,6 +143,7 @@ function runChild(command, args, { signal, timeoutMs }) {
     let settled = false;
     let timer;
     let killTimer;
+    let stderr = "";
     const finish = (fn, value) => {
       if (settled) return;
       settled = true;
@@ -157,7 +162,9 @@ function runChild(command, args, { signal, timeoutMs }) {
     signal?.addEventListener("abort", onAbort, { once: true });
     timer = setTimeout(() => {
       stop();
-      finish(reject, new Error("Claude Code decision timed out after two minutes."));
+      const error = new Error("Claude Code decision timed out after three minutes.");
+      error.retryable = true;
+      finish(reject, error);
     }, timeoutMs);
     timer.unref?.();
     child.stdout.on("data", (chunk) => {
@@ -167,14 +174,20 @@ function runChild(command, args, { signal, timeoutMs }) {
     });
     child.stderr.on("data", (chunk) => {
       // CLI diagnostics can contain prompt fragments; never copy them into run logs.
-      void chunk;
+      stderr = (stderr + chunk.toString()).slice(-6000);
     });
-    child.once("error", () => finish(reject, new Error("Claude Code CLI could not be started.")));
+    child.once("error", () => {
+      const error = new Error("Claude Code CLI could not be started.");
+      error.retryable = true;
+      finish(reject, error);
+    });
     child.once("close", (code) => {
       clearTimeout(killTimer);
       if (settled) return;
       if (code !== 0) {
-        finish(reject, new Error(`Claude Code exited with status ${code}.`));
+        const error = new Error(`Claude Code exited with status ${code}.`);
+        error.retryable = isTransientServiceFailure(stderr);
+        finish(reject, error);
         return;
       }
       finish(resolve, { stdout: Buffer.concat(stdout).toString("utf8") });
@@ -261,6 +274,10 @@ function combineSignals(a, b) {
     else signal.addEventListener("abort", () => controller.abort(signal.reason), { once: true });
   }
   return controller.signal;
+}
+
+function isTransientServiceFailure(diagnostic) {
+  return /(?:\b429\b|\b500\b|\b502\b|\b503\b|\b504\b|\b529\b|overloaded|rate limit|temporarily unavailable|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|fetch failed|socket hang up|network (?:error|failure)|connection reset)/i.test(String(diagnostic || ""));
 }
 
 function abortError() { const error = new Error("Run stopped."); error.name = "AbortError"; return error; }

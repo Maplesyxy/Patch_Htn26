@@ -69,7 +69,7 @@ export async function loadRuntimeConfig(env = process.env, { loadDotenv = true }
     claudeCommand,
     geminiApiKey: env.GEMINI_API_KEY || "",
     dataDir: path.resolve(env.PATCH_RUNTIME_DATA_DIR || path.join(root, ".patch-runs")),
-    limits: { actions: 16, runMs: 10 * 60 * 1000, fixMs: 8 * 60 * 1000, actionMs: 35 * 1000, queued: 5 },
+    limits: { actions: 16, runMs: 15 * 60 * 1000, fixMs: 8 * 60 * 1000, actionMs: 35 * 1000, queued: 5 },
     missing,
   };
 }
