@@ -10,7 +10,7 @@ import { openBrowserSession, safeUrl, validateNetworkFaultRequest } from "./brow
 
 const TEAM = ["incident-lead", "support-engineer", "sre-analyst", "qa-engineer"];
 
-export async function runInvestigation(run) {
+export async function runInvestigation(run, { openSession = openBrowserSession } = {}) {
   const { id: runId, config, controller, publish } = run;
   const signal = controller.signal;
   const runDir = path.join(config.dataDir, runId);
@@ -132,7 +132,7 @@ export async function runInvestigation(run) {
     await message("support-engineer", "team", "NOTE", ["CLM-1"], "The customer report is captured as CLM-1. It is a reported symptom, not a confirmed defect.");
 
     await activity("qa-engineer", "acting", "Opening a fresh isolated browser session.", "No customer browser state or credentials are shared with the runtime.", "S0");
-    session = await openBrowserSession(config, run.provider, run.targetUrl, signal, report);
+    session = await openSession(config, run.provider, run.targetUrl, signal, report);
     await browserEvent("open", { step: 0, action: "Session opened" });
     await session.page.goto(run.targetUrl, { waitUntil: "domcontentloaded", timeout: config.limits.actionMs });
     const initial = await session.snapshot();

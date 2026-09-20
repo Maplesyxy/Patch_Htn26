@@ -10,7 +10,7 @@ Adding credentials makes the cloud provider available; it does not make a loopba
 
 ## Teammate setup
 
-Put `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` in the ignored `repro-console/.env.local` on the machine running the worker. Never commit either value. Cloud browsers need a publicly reachable target URL; the included app on `127.0.0.1:3100` is usable only by the explicit local-browser provider until it is deployed or tunneled.
+Put `BROWSERBASE_API_KEY` in the ignored `repro-console/.env.local` on the machine running the worker. The live Node runner uses the key to select the project automatically. Never commit the key. Cloud browsers need a publicly reachable target URL; the included app on `127.0.0.1:3100` is usable only by the explicit local-browser provider until it is deployed or tunneled.
 
 Install the console dependencies with `npm ci`. Configure `PATCH_RUNTIME_TOKEN`, `REPRO_INGEST_TOKENS`, and `GEMINI_API_KEY`; the example environment documents their format. Install and authenticate Claude Code. Start the console and worker with `npm run dev:live` (or `npm run runtime` beside an existing console). After changing worker credentials, restart the worker, then use **Refresh** in the report form. Choose **Browserbase** and a public target URL for the cloud round.
 
@@ -62,4 +62,8 @@ The worker needs local disk for `.patch-runs/` and worktrees. A serverless Next.
 - [Browserbase live view and embedding](https://docs.browserbase.com/platform/browser/observability/session-live-view)
 - [Claude Code programmatic mode](https://code.claude.com/docs/en/headless)
 
-Cloud-session validation is pending teammate credentials. A controlled Chromium trial produced one booking on a clean click and two when its completed server response was dropped, causing a client retry. Real Claude implementation then generated an isolated patch that passed all seven protected HTTP checks and a production build after correcting the build subprocess environment. All 33 automated tests pass. The complete autonomous browser-model round still needs confirmation; detailed validation and its limits are tracked in `CODEX_LOG.md`.
+Browserbase connectivity was validated on 2026-09-20 using only the API key: the live Node browser adapter opened `https://example.com/`, returned the expected page title and a live-view URL, and released the session to `COMPLETED`. This validates browser connectivity and cleanup; it does not validate a complete autonomous browser-model round.
+
+`npm run test:browserbase` now exercises broken and working counter fixtures with real cloud sessions and models, console streaming, screenshots, artifact downloads, and cleanup. Direct browser checks passed for both counter variants, and 24 local customer/runtime/model checks passed. The live model-driven trial reached S2 after Gemini planning, then stopped because the worker's Claude Code OAuth session had expired. Renew with `claude auth login` in the worker environment before rerunning; full model-driven success remains unverified. Gemini now retries one temporary 502/503/504 response within its existing cancellation and timeout bounds, and Claude authentication failures produce actionable, sanitized dashboard messages.
+
+Earlier local validation: a controlled Chromium trial produced one booking on a clean click and two when its completed server response was dropped, causing a client retry. Real Claude implementation then generated an isolated patch that passed all seven protected HTTP checks and a production build after correcting the build subprocess environment. All 33 automated tests passed at that checkpoint. Detailed validation and its limits are tracked in `CODEX_LOG.md`.

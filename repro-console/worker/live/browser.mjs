@@ -255,18 +255,18 @@ export async function openBrowserSession(config, provider, targetUrl, signal, re
       const response = await fetch(`${config.browserbase.apiUrl}/sessions`, {
         method: "POST",
         headers: { "X-BB-API-Key": config.browserbase.apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: config.browserbase.projectId, browserSettings: { viewport: { width: 1365, height: 900 }, recordSession: true, logSession: true }, timeout: 600 }),
+        body: JSON.stringify({ browserSettings: { viewport: { width: 1365, height: 900 }, recordSession: true, logSession: true }, timeout: 600 }),
         signal,
       });
       const session = await readJson(response);
-      if (!response.ok) throw new BrowserProviderError("Could not create a Browserbase session. Check project and API key settings.", { kind: "provider" });
+      if (!response.ok) throw new BrowserProviderError("Could not create a Browserbase session. Check the API key and account limits.", { kind: "provider" });
       sessionId = String(session.id || session.sessionId || "");
       const connectUrl = session.connectUrl || session.connect_url || session.wsEndpoint;
       if (!sessionId) throw new BrowserProviderError("Browserbase returned an incomplete session response.", { kind: "provider" });
       release = async () => {
         const r = await fetch(`${config.browserbase.apiUrl}/sessions/${encodeURIComponent(sessionId)}`, {
-          method: "PUT", headers: { "X-BB-API-Key": config.browserbase.apiKey, "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId: config.browserbase.projectId, status: "REQUEST_RELEASE" }), signal: AbortSignal.timeout(10000),
+          method: "POST", headers: { "X-BB-API-Key": config.browserbase.apiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "REQUEST_RELEASE" }), signal: AbortSignal.timeout(10000),
         });
         if (!r.ok && r.status !== 404) throw new Error(`Browserbase session release returned ${r.status}.`);
       };

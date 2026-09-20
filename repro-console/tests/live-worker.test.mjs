@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { BrowserSession, safeUrl, validateNetworkFaultRequest } from "../worker/live/browser.mjs";
 import { configForTest, loadRuntimeConfig, validateTargetUrl } from "../worker/live/config.mjs";
 
-test("runtime config binds the explicit ingest token to its selected workspace pair", async () => {
+test("runtime config accepts a Browserbase key alone and binds the ingest token to its workspace", async () => {
   const common = {
     PATCH_RUNTIME_TOKEN: "runtime-test",
     REPRO_INGEST_TOKENS: "alpha:ingest-a,beta:ingest-b",
@@ -11,7 +11,6 @@ test("runtime config binds the explicit ingest token to its selected workspace p
     REPRO_INGEST_TOKEN: "ingest-b",
     GEMINI_API_KEY: "gemini-test",
     BROWSERBASE_API_KEY: "browserbase-test",
-    BROWSERBASE_PROJECT_ID: "project-test",
     PATCH_CLAUDE_COMMAND: "claude",
   };
   const valid = await loadRuntimeConfig(common, { loadDotenv: false });
